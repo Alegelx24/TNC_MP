@@ -19,7 +19,7 @@ from scipy import interpolate
 
 # Local imports
 # from deepecg.config.config import DATA_DIR
-DATA_DIR = "./data/waveform_data"
+DATA_DIR = "/Users/aleg2/Downloads/mit-bih-atrial-fibrillation-database-1.0.0"
 afib_dict = {"AFIB":0, "AFL":1, "J":2, "N":3}
 
 

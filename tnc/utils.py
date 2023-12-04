@@ -132,7 +132,7 @@ def track_encoding(sample, label, encoder, window_size, path, sliding_gap=5):  #
     sns.scatterplot(x="f1", y="f2", data=df, hue="time")
     plt.savefig(os.path.join("./plots/%s" % path, "embedding_trajectory.pdf"))
 
-
+#plot the distribution of the encodings
 def plot_distribution(x_test, y_test, encoder, window_size, path, device, title="", augment=4, cv=0):
     checkpoint = torch.load('./ckpt/%s/checkpoint_%d.pth.tar'%(path, cv))
     encoder.load_state_dict(checkpoint['encoder_state_dict'])
@@ -242,6 +242,14 @@ def confidence_ellipse(mean, cov, ax, n_std=1.0, facecolor='none', **kwargs):
 
 
 def trend_decompose(x, filter_size):
+    """
+    Decomposes a time series into its trend component using a rolling window filter.
+    Parameters:
+    x (ndarray): The input time series.
+    filter_size (int): The size of the rolling window filter.
+    Returns:
+    None
+    """
     df = pd.DataFrame(data=x.T)
     df = df.rolling(filter_size, win_type='triang').sum()
     s = df.loc[:, 0]

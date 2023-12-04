@@ -47,7 +47,7 @@ class Discriminator(torch.nn.Module):
         return p.view((-1,))
 
 
-class TNCDataset(data.Dataset):
+class TNCDataset(data.Dataset): #dataset class to model the set for TNC
     """
     A custom dataset class for TNC (Time Series Nearest Class) dataset.
 
@@ -94,25 +94,30 @@ class TNCDataset(data.Dataset):
         return x_t, X_close, X_distant, y_t
 
     def _find_neighours(self, x, t):
+        """
+        Find neighboring samples around a given time point.
+        Args: x (torch.Tensor): Input time series data.
+              t (int): Time index.
+        Returns: torch.Tensor: Neighboring samples around the given time point.
+        """
         T = self.time_series.shape[-1]
         if self.adf:
             gap = self.window_size
             corr = []
-            for w_t in range(self.window_size,4*self.window_size, gap):
+            for w_t in range(self.window_size, 4*self.window_size, gap):
                 try:
                     p_val = 0
                     for f in range(x.shape[-2]):
-                        p = adfuller(np.array(x[f, max(0,t - w_t):min(x.shape[-1], t + w_t)].reshape(-1, )))[1]
+                        p = adfuller(np.array(x[f, max(0, t - w_t):min(x.shape[-1], t + w_t)].reshape(-1, )))[1]
                         p_val += 0.01 if math.isnan(p) else p
                     corr.append(p_val/x.shape[-2])
                 except:
                     corr.append(0.6)
-            self.epsilon = len(corr) if len(np.where(np.array(corr) >= 0.01)[0])==0 else (np.where(np.array(corr) >= 0.01)[0][0] + 1)
+            self.epsilon = len(corr) if len(np.where(np.array(corr) >= 0.01)[0]) == 0 else (np.where(np.array(corr) >= 0.01)[0][0] + 1)
             self.delta = 5*self.epsilon*self.window_size
-
         ## Random from a Gaussian
         t_p = [int(t+np.random.randn()*self.epsilon*self.window_size) for _ in range(self.mc_sample_size)]
-        t_p = [max(self.window_size//2+1,min(t_pp,T-self.window_size//2)) for t_pp in t_p]
+        t_p = [max(self.window_size//2+1, min(t_pp, T-self.window_size//2)) for t_pp in t_p]
         x_p = torch.stack([x[:, t_ind-self.window_size//2:t_ind+self.window_size//2] for t_ind in t_p])
         return x_p
 
@@ -131,7 +136,7 @@ class TNCDataset(data.Dataset):
             else:
                 x_n = x[:, T - rand_t - self.window_size:T - rand_t].unsqueeze(0)
         return x_n
-
+#end of tnc dataset class
 
 def epoch_run(loader, disc_model, encoder, device, w=0, optimizer=None, train=True):
     if train:
@@ -141,7 +146,7 @@ def epoch_run(loader, disc_model, encoder, device, w=0, optimizer=None, train=Tr
         encoder.eval()
         disc_model.eval()
     # loss_fn = torch.nn.BCELoss()
-    loss_fn = torch.nn.BCEWithLogitsLoss()
+    loss_fn = torch.nn.BCEWithLogitsLoss() #loss function!
     encoder.to(device)
     disc_model.to(device)
     epoch_loss = 0
@@ -152,7 +157,7 @@ def epoch_run(loader, disc_model, encoder, device, w=0, optimizer=None, train=Tr
         batch_size, f_size, len_size = x_t.shape
         x_p = x_p.reshape((-1, f_size, len_size))
         x_n = x_n.reshape((-1, f_size, len_size))
-        x_t = np.repeat(x_t, mc_sample, axis=0)
+        x_t = np.repeat(x_t, mc_sample, axis=0)#create multiple samples for each time point for monte carlo sampling
         neighbors = torch.ones((len(x_p))).to(device)
         non_neighbors = torch.zeros((len(x_n))).to(device)
         x_t, x_p, x_n = x_t.to(device), x_p.to(device), x_n.to(device)
@@ -161,7 +166,7 @@ def epoch_run(loader, disc_model, encoder, device, w=0, optimizer=None, train=Tr
         z_p = encoder(x_p)
         z_n = encoder(x_n)
 
-        d_p = disc_model(z_t, z_p)
+        d_p = disc_model(z_t, z_p) #output of the discriminator, if close to 1, then the two inputs are close
         d_n = disc_model(z_t, z_n)
 
         p_loss = loss_fn(d_p, neighbors)
@@ -178,9 +183,9 @@ def epoch_run(loader, disc_model, encoder, device, w=0, optimizer=None, train=Tr
         epoch_acc = epoch_acc + (p_acc+n_acc)/2
         epoch_loss += loss.item()
         batch_count += 1
-    return epoch_loss/batch_count, epoch_acc/batch_count
+    return epoch_loss/batch_count, epoch_acc/batch_count #returns the average loss and accuracy for the epoch
 
-
+#training loop function
 def learn_encoder(x, encoder, window_size, w, lr=0.001, decay=0.005, mc_sample_size=20,
                   n_epochs=100, path='simulation', device='cpu', augmentation=1, n_cross_val=1, cont=False):
     accuracies, losses = [], []

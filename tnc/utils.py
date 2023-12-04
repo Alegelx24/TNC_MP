@@ -46,13 +46,15 @@ def create_simulated_dataset(window_size=50, path='./data/simulated_data/', batc
     return train_loader, valid_loader, test_loader
 
 
-def track_encoding(sample, label, encoder, window_size, path, sliding_gap=5):
+def track_encoding(sample, label, encoder, window_size, path, sliding_gap=5):  #visualize the trajectory of the encoding vs the original time series
     T = sample.shape[-1]
     windows_label = []
     encodings = []
     device = 'cuda'
-    encoder.to(device)
+    encoder.to(device)  #encoder is set to evaluation mode, moved to GPU 
     encoder.eval()
+
+    #encode the windows
     for t in range(window_size//2,T-window_size//2,sliding_gap):
         windows = sample[:, t-(window_size//2):t+(window_size//2)]
         windows_label.append((np.bincount(label[t-(window_size//2):t+(window_size//2)].astype(int)).argmax()))
@@ -63,6 +65,8 @@ def track_encoding(sample, label, encoder, window_size, path, sliding_gap=5):
         encodings.insert(0, encodings[0])
     encodings = torch.stack(encodings, 0)
 
+
+    #plot the trajectory to visualize the encoded data
     if 'waveform' in path:
         f, axs = plt.subplots(3)
         f.set_figheight(12)
@@ -117,6 +121,7 @@ def track_encoding(sample, label, encoder, window_size, path, sliding_gap=5):
     # encoder.to(encoder.device)
     # encodings = encoder(windows)
 
+    #perform PCA on the encodings and create a scatter plot
     pca = PCA(n_components=2)
     embedding = pca.fit_transform(encodings.detach().cpu().numpy())
     d = {'f1':embedding[:,0], 'f2':embedding[:,1], 'time':np.arange(len(embedding))}#, 'label':windows_label}

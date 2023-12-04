@@ -83,7 +83,7 @@ class TNCDataset(data.Dataset): #dataset class to model the set for TNC
         ind = ind%len(self.time_series)
         t = np.random.randint(2*self.window_size, self.T-2*self.window_size)
         x_t = self.time_series[ind][:,t-self.window_size//2:t+self.window_size//2]
-        plt.savefig('./plots/%s_seasonal.png'%ind)
+        #plt.savefig('./plots/%s_seasonal.png'%ind)#save the plot of the time series
         X_close = self._find_neighours(self.time_series[ind], t)
         X_distant = self._find_non_neighours(self.time_series[ind], t)
 
@@ -196,41 +196,51 @@ def learn_encoder(x, encoder, window_size, w, lr=0.001, decay=0.005, mc_sample_s
         elif 'simulation' in path:
             encoder = RnnEncoder(hidden_size=100, in_channel=3, encoding_size=10, device=device)
             batch_size = 10
-        elif 'har' in path:
+        elif 'har' in path: #har dataset, 561 features, RNN encoder with 100 hidden units
             encoder = RnnEncoder(hidden_size=100, in_channel=561, encoding_size=10, device=device)
             batch_size = 10
-        if not os.path.exists('./ckpt/%s'%path):
+
+            #insert here another elif with different dataset and encoder
+
+        if not os.path.exists('./ckpt/%s'%path):#create checkpoint folder
             os.mkdir('./ckpt/%s'%path)
-        if cont:
+        if cont:#continue training from a checkpoint
             checkpoint = torch.load('./ckpt/%s/checkpoint_%d.pth.tar'%(path, cv))
             encoder.load_state_dict(checkpoint['encoder_state_dict'])
 
         disc_model = Discriminator(encoder.encoding_size, device)
-        params = list(disc_model.parameters()) + list(encoder.parameters())
+        params = list(disc_model.parameters()) + list(encoder.parameters())#set of parameters to optimize
         optimizer = torch.optim.Adam(params, lr=lr, weight_decay=decay)
         inds = list(range(len(x)))
         random.shuffle(inds)
-        x = x[inds]
-        n_train = int(0.8*len(x))
+        x = x[inds]# take a random subset of the data
+        n_train = int(0.8*len(x))#80% of the data for training
         performance = []
         best_acc = 0
         best_loss = np.inf
 
         for epoch in range(n_epochs+1):
+            # Create the dataset and dataloader
             trainset = TNCDataset(x=torch.Tensor(x[:n_train]), mc_sample_size=mc_sample_size,
                                   window_size=window_size, augmentation=augmentation, adf=True)
             train_loader = data.DataLoader(trainset, batch_size=batch_size, shuffle=True, num_workers=3)
+            # Create the validation set (20% of the data)
             validset = TNCDataset(x=torch.Tensor(x[n_train:]), mc_sample_size=mc_sample_size,
                                   window_size=window_size, augmentation=augmentation, adf=True)
             valid_loader = data.DataLoader(validset, batch_size=batch_size, shuffle=True)
 
+            # Run the training    
             epoch_loss, epoch_acc = epoch_run(train_loader, disc_model, encoder, optimizer=optimizer,
                                               w=w, train=True, device=device)
+            # Run the validation
             test_loss, test_acc = epoch_run(valid_loader, disc_model, encoder, train=False, w=w, device=device)
             performance.append((epoch_loss, test_loss, epoch_acc, test_acc))
+
             if epoch%10 == 0:
                 print('(cv:%s)Epoch %d Loss =====> Training Loss: %.5f \t Training Accuracy: %.5f \t Test Loss: %.5f \t Test Accuracy: %.5f'
                       % (cv, epoch, epoch_loss, epoch_acc, test_loss, test_acc))
+                
+            # Save the best model inside the checkpoint folder
             if best_loss > test_loss or path=='har':
                 best_acc = test_acc
                 best_loss = test_loss
@@ -241,8 +251,10 @@ def learn_encoder(x, encoder, window_size, w, lr=0.001, decay=0.005, mc_sample_s
                     'best_accuracy': test_acc
                 }
                 torch.save(state, './ckpt/%s/checkpoint_%d.pth.tar'%(path,cv))
+
         accuracies.append(best_acc)
         losses.append(best_loss)
+
         # Save performance plots
         if not os.path.exists('./plots/%s'%path):
             os.mkdir('./plots/%s'%path)
@@ -268,13 +280,15 @@ def learn_encoder(x, encoder, window_size, w, lr=0.001, decay=0.005, mc_sample_s
     print('Loss: %.4f +- %.4f'%(np.mean(losses), np.std(losses)))
     return encoder
 
-
-def main(is_train, data_type, cv, w, cont):
+# Main function
+def main(is_train, data_type, cv, w, cont, epochs):
     if not os.path.exists("./plots"):
         os.mkdir("./plots")
     if not os.path.exists("./ckpt/"):
         os.mkdir("./ckpt/")
 
+    '''
+    #Simulation data
     if data_type == 'simulation':
         window_size = 50
         encoder = RnnEncoder(hidden_size=100, in_channel=3, encoding_size=10, device=device)
@@ -283,10 +297,11 @@ def main(is_train, data_type, cv, w, cont):
         if is_train:
             with open(os.path.join(path, 'x_train.pkl'), 'rb') as f:
                 x = pickle.load(f)
-            learn_encoder(x, encoder, w=w, lr=1e-3, decay=1e-5, window_size=window_size, n_epochs=100,
+            learn_encoder(x, encoder, w=w, lr=1e-3, decay=1e-5, window_size=window_size, n_epochs=epochs,
                           mc_sample_size=40, path='simulation', device=device, augmentation=5, n_cross_val=cv)
-        else:
-            # Plot the distribution of the encodings and use the learnt encoders to train a downstream classifier
+        else:#Test the encoder on the test set
+            
+            #  Plot the distribution of the encodings and use the learnt encoders to train a downstream classifier
             with open(os.path.join(path, 'x_test.pkl'), 'rb') as f:
                 x_test = pickle.load(f)
             with open(os.path.join(path, 'state_test.pkl'), 'rb') as f:
@@ -305,6 +320,7 @@ def main(is_train, data_type, cv, w, cont):
                     tnc_acc, tnc_auc, e2e_acc, e2e_auc = exp.run(data='simulation', n_epochs=150, lr_e2e=lr, lr_cls=lr)
                     print('TNC acc: %.2f \t TNC auc: %.2f \t E2E acc: %.2f \t E2E auc: %.2f'%(tnc_acc, tnc_auc, e2e_acc, e2e_auc))
 
+    # Waveform data
     if data_type == 'waveform':
         window_size = 2500
         path = './data/waveform_data/processed'
@@ -315,9 +331,8 @@ def main(is_train, data_type, cv, w, cont):
                 x = pickle.load(f)
             T = x.shape[-1]
             x_window = np.concatenate(np.split(x[:, :, :T // 5 * 5], 5, -1), 0)
-            learn_encoder(torch.Tensor(x_window), encoder, w=w, lr=1e-5, decay=1e-4, n_epochs=150, window_size=window_size,
+            learn_encoder(torch.Tensor(x_window), encoder, w=w, lr=1e-5, decay=1e-4, n_epochs=epochs, window_size=window_size,
                           path='waveform', mc_sample_size=10, device=device, augmentation=7, n_cross_val=cv, cont = cont)
-
         else:
             with open(os.path.join(path, 'x_test.pkl'), 'rb') as f:
                 x_test = pickle.load(f)
@@ -332,19 +347,24 @@ def main(is_train, data_type, cv, w, cont):
                                   device=device, augment=100, cv=cv_ind, title='TNC')
             exp = WFClassificationExperiment(window_size=window_size, cv=cv_ind)
             exp.run(data='waveform', n_epochs=10, lr_e2e=0.0001, lr_cls=0.01)
+    '''
 
+    # Human Activity Recognition (HAR) data
     if data_type == 'har':
+        #set window size 
         window_size = 4
         path = './data/HAR_data/'
+        #initialization of encoder
         encoder = RnnEncoder(hidden_size=100, in_channel=561, encoding_size=10, device=device)
 
-        if is_train:
+        if is_train: #train the Rnn encoder on the training set
+
             with open(os.path.join(path, 'x_train.pkl'), 'rb') as f:
                 x = pickle.load(f)
-            learn_encoder(torch.Tensor(x), encoder, w=w, lr=1e-3, decay=1e-5, n_epochs=150, window_size=window_size,
+            learn_encoder(torch.Tensor(x), encoder, w=w, lr=1e-3, decay=1e-5, n_epochs=epochs, window_size=window_size,
                           path='har', mc_sample_size=20, device=device, augmentation=5, n_cross_val=cv)
-
-        else:
+            
+        else: #test the encoder on the test set
             with open(os.path.join(path, 'x_test.pkl'), 'rb') as f:
                 x_test = pickle.load(f)
             with open(os.path.join(path, 'state_test.pkl'), 'rb') as f:
@@ -356,6 +376,8 @@ def main(is_train, data_type, cv, w, cont):
             for cv_ind in range(cv):
                 plot_distribution(x_test, y_test, encoder, window_size=window_size, path='har', device=device,
                                   augment=100, cv=cv_ind, title='TNC')
+                
+                #set up the classification experiment
                 exp = ClassificationPerformanceExperiment(n_states=6, encoding_size=10, path='har', hidden_size=100,
                                                           in_channel=561, window_size=4, cv=cv_ind)
                 # Run cross validation for classification
@@ -373,8 +395,9 @@ if __name__ == '__main__':
     parser.add_argument('--w', type=float, default=0.05)
     parser.add_argument('--train', action='store_true')
     parser.add_argument('--cont', action='store_true')
+    parser.add_argument('--epochs', type=int, default=100)
     args = parser.parse_args()
     print('TNC model with w=%f'%args.w)
-    main(args.train, args.data, args.cv, args.w, args.cont)
+    main(args.train, args.data, args.cv, args.w, args.cont, args.epochs)
 
 

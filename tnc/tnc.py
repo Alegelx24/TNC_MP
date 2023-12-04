@@ -1,7 +1,6 @@
 """
 Temporal Neighborhood Coding (TNC) for unsupervised learning representation of non-stationary time series
 """
-
 import torch
 from torch.utils import data
 import matplotlib.pyplot as plt
@@ -9,12 +8,10 @@ import argparse
 import math
 import seaborn as sns; sns.set()
 import sys
-
 import numpy as np
 import pickle
 import os
 import random
-
 from tnc.models import RnnEncoder, WFEncoder
 from tnc.utils import plot_distribution, track_encoding
 from tnc.evaluations import WFClassificationExperiment, ClassificationPerformanceExperiment
@@ -28,6 +25,7 @@ device = 'cuda' if torch.cuda.is_available() else 'cpu'
 
 class Discriminator(torch.nn.Module):
     def __init__(self, input_size, device):
+
         super(Discriminator, self).__init__()
         self.device = device
         self.input_size = input_size
@@ -50,6 +48,19 @@ class Discriminator(torch.nn.Module):
 
 
 class TNCDataset(data.Dataset):
+    """
+    A custom dataset class for TNC (Time Series Nearest Class) dataset.
+
+    Args:
+        x (numpy.ndarray): The input time series data.
+        mc_sample_size (int): The number of Monte Carlo samples.
+        window_size (int): The size of the sliding window.
+        augmentation (int): The number of times to augment each sample.
+        epsilon (int, optional): The epsilon value for ADF (Augmented Dickey-Fuller) test. Defaults to 3.
+        state (torch.Tensor, optional): The state tensor. Defaults to None.
+        adf (bool, optional): Whether to use ADF for epsilon calculation. Defaults to False.
+    """
+
     def __init__(self, x, mc_sample_size, window_size, augmentation, epsilon=3, state=None, adf=False):
         super(TNCDataset, self).__init__()
         self.time_series = x
@@ -336,7 +347,7 @@ def main(is_train, data_type, cv, w, cont):
             checkpoint = torch.load('./ckpt/%s/checkpoint_0.pth.tar' % (data_type))
             encoder.load_state_dict(checkpoint['encoder_state_dict'])
             encoder = encoder.to(device)
-            track_encoding(x_test[0,:,:], y_test[0,:], encoder, window_size, 'har')
+            #track_encoding(x_test[0,:,:], y_test[0,:], encoder, window_size, 'har') #used to plot the encoding
             for cv_ind in range(cv):
                 plot_distribution(x_test, y_test, encoder, window_size=window_size, path='har', device=device,
                                   augment=100, cv=cv_ind, title='TNC')

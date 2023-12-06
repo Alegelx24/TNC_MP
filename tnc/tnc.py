@@ -86,9 +86,8 @@ class TNCDataset(data.Dataset): #dataset class to model the set for TNC
         x_t = self.time_series[ind][t-self.window_size//2:t+self.window_size//2]
 
         #plt.savefig('./plots/%s_seasonal.png'%ind)#save the plot of the time series
-        X_close = self._find_neighours(self.time_series[ind], t)
-        X_distant = self._find_non_neighours(self.time_series[ind], t)
-
+        X_close = self._find_neighours(self.time_series[ind], t) #these are the positive samples, x_p
+        X_distant = self._find_non_neighours(self.time_series[ind], t) # these are the negative samples, x_n 
         if self.state is None:
             y_t = -1
         else:
@@ -125,7 +124,7 @@ class TNCDataset(data.Dataset): #dataset class to model the set for TNC
 
         return x_p
 
-    def _find_non_neighours(self, x, t):
+    def _find_non_neighours(self, x, t): #find non-neighbors returns negative samples
         T = self.time_series.shape[-1]
         if t>T/2:
             t_n = np.random.randint(self.window_size//2, max((t - self.delta + 1), self.window_size//2+1), self.mc_sample_size)
@@ -158,6 +157,11 @@ def epoch_run(loader, disc_model, encoder, device, w=0, optimizer=None, train=Tr
     epoch_acc = 0
     batch_count = 0
     for x_t, x_p, x_n, _ in loader:
+
+        print("x_t shape: ", x_t.shape)
+        print("x_p shape: ", x_p.shape)
+        print("x_n shape: ", x_n.shape)
+
         mc_sample = x_p.shape[0]
         batch_size, len_size = x_t.shape
         f_size = 1
@@ -240,8 +244,11 @@ def learn_encoder(x, encoder, window_size, w, lr=0.001, decay=0.005, mc_sample_s
             # Create the dataset and dataloader
             trainset = TNCDataset(x=torch.Tensor(x[:n_train]), mc_sample_size=mc_sample_size,
                                   window_size=window_size, augmentation=augmentation, adf=True)
+                        
             
             train_loader = data.DataLoader(trainset, batch_size=batch_size, shuffle=True, num_workers=3)
+            
+                
             # Create the validation set (20% of the data)
             validset = TNCDataset(x=torch.Tensor(x[n_train:]), mc_sample_size=mc_sample_size,
                                   window_size=window_size, augmentation=augmentation, adf=True)
@@ -411,7 +418,7 @@ def main(is_train, data_type, cv, w, cont, epochs):
 
     if data_type == 'yahoo':
         #set window size 
-        window_size = 400
+        window_size = 50
         path = './data/yahoo_data/'
         #initialization of encoder
         encoder = RnnEncoder(hidden_size=100, in_channel=1, encoding_size=10, device=device)

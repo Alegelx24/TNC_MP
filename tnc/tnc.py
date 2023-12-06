@@ -159,10 +159,10 @@ def epoch_run(loader, disc_model, encoder, device, w=0, optimizer=None, train=Tr
     batch_count = 0
     for x_t, x_p, x_n, _ in loader:
         mc_sample = x_p.shape[0]
-        ###############################################################################################################
-        batch_size, f_size, len_size = x_t.shape
-        #f_size, len_size = x_t.shape
-        
+        batch_size, len_size = x_t.shape
+        f_size = 1
+        x_t = x_t.reshape((-1, f_size, len_size))
+      
         x_p = x_p.reshape((-1, f_size, len_size))
         x_n = x_n.reshape((-1, f_size, len_size))
         x_t = np.repeat(x_t, mc_sample, axis=0)#create multiple samples for each time point for monte carlo sampling
@@ -173,6 +173,12 @@ def epoch_run(loader, disc_model, encoder, device, w=0, optimizer=None, train=Tr
         z_t = encoder(x_t)
         z_p = encoder(x_p)
         z_n = encoder(x_n)
+
+        print("z_t shape: ", z_t.shape)
+        print("z_p shape: ", z_p.shape)
+        print("z_n shape: ", z_n.shape)
+
+        ##########################################################################################################
 
         d_p = disc_model(z_t, z_p) #output of the discriminator, if close to 1, then the two inputs are close
         d_n = disc_model(z_t, z_n)
@@ -197,7 +203,7 @@ def epoch_run(loader, disc_model, encoder, device, w=0, optimizer=None, train=Tr
 def learn_encoder(x, encoder, window_size, w, lr=0.001, decay=0.005, mc_sample_size=20,
                   n_epochs=100, path='simulation', device='cpu', augmentation=1, n_cross_val=1, cont=False):
     accuracies, losses = [], []
-    for cv in range(n_cross_val):
+    for cv in range(n_cross_val): #cross validation loop over n cv folds
         if 'waveform' in path:
             encoder = WFEncoder(encoding_size=64).to(device)
             batch_size = 5
@@ -224,7 +230,7 @@ def learn_encoder(x, encoder, window_size, w, lr=0.001, decay=0.005, mc_sample_s
         optimizer = torch.optim.Adam(params, lr=lr, weight_decay=decay)
         inds = list(range(len(x)))
         random.shuffle(inds)
-        x = x[inds]# take a random subset of the data
+        x = x[inds]# take a random subsequence
         n_train = int(0.8*len(x))#80% of the data for training
         performance = []
         best_acc = 0
@@ -234,6 +240,7 @@ def learn_encoder(x, encoder, window_size, w, lr=0.001, decay=0.005, mc_sample_s
             # Create the dataset and dataloader
             trainset = TNCDataset(x=torch.Tensor(x[:n_train]), mc_sample_size=mc_sample_size,
                                   window_size=window_size, augmentation=augmentation, adf=True)
+            
             train_loader = data.DataLoader(trainset, batch_size=batch_size, shuffle=True, num_workers=3)
             # Create the validation set (20% of the data)
             validset = TNCDataset(x=torch.Tensor(x[n_train:]), mc_sample_size=mc_sample_size,
@@ -404,15 +411,14 @@ def main(is_train, data_type, cv, w, cont, epochs):
 
     if data_type == 'yahoo':
         #set window size 
-        window_size = 40
+        window_size = 400
         path = './data/yahoo_data/'
         #initialization of encoder
-        encoder = RnnEncoder(hidden_size=100, in_channel=561, encoding_size=10, device=device)
+        encoder = RnnEncoder(hidden_size=100, in_channel=1, encoding_size=10, device=device)
         if is_train: #train the Rnn encoder on the training set
 
             with open(os.path.join(path, 'yahoo_x_train.pkl'), 'rb') as f:
                 x = pickle.load(f)
-            print(torch.Tensor(x)[0].shape)
             learn_encoder(torch.Tensor(x), encoder, w=w, lr=1e-3, decay=1e-5, n_epochs=epochs, window_size=window_size,
                         path='yahoo', mc_sample_size=20, device=device, augmentation=5, n_cross_val=cv)
         else: #test the encoder on the test set

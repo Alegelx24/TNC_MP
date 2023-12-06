@@ -82,7 +82,9 @@ class TNCDataset(data.Dataset): #dataset class to model the set for TNC
     def __getitem__(self, ind):
         ind = ind%len(self.time_series)
         t = np.random.randint(2*self.window_size, self.T-2*self.window_size)
-        x_t = self.time_series[ind][:,t-self.window_size//2:t+self.window_size//2]
+        #x_t = self.time_series[ind][:,t-self.window_size//2:t+self.window_size//2]
+        x_t = self.time_series[ind][t-self.window_size//2:t+self.window_size//2]
+
         #plt.savefig('./plots/%s_seasonal.png'%ind)#save the plot of the time series
         X_close = self._find_neighours(self.time_series[ind], t)
         X_distant = self._find_non_neighours(self.time_series[ind], t)
@@ -118,7 +120,9 @@ class TNCDataset(data.Dataset): #dataset class to model the set for TNC
         ## Random from a Gaussian
         t_p = [int(t+np.random.randn()*self.epsilon*self.window_size) for _ in range(self.mc_sample_size)]
         t_p = [max(self.window_size//2+1, min(t_pp, T-self.window_size//2)) for t_pp in t_p]
-        x_p = torch.stack([x[:, t_ind-self.window_size//2:t_ind+self.window_size//2] for t_ind in t_p])
+        #x_p = torch.stack([x[:, t_ind-self.window_size//2:t_ind+self.window_size//2] for t_ind in t_p])
+        x_p = torch.stack([x[ t_ind-self.window_size//2:t_ind+self.window_size//2] for t_ind in t_p])
+
         return x_p
 
     def _find_non_neighours(self, x, t):
@@ -127,7 +131,8 @@ class TNCDataset(data.Dataset): #dataset class to model the set for TNC
             t_n = np.random.randint(self.window_size//2, max((t - self.delta + 1), self.window_size//2+1), self.mc_sample_size)
         else:
             t_n = np.random.randint(min((t + self.delta), (T - self.window_size-1)), (T - self.window_size//2), self.mc_sample_size)
-        x_n = torch.stack([x[:, t_ind-self.window_size//2:t_ind+self.window_size//2] for t_ind in t_n])
+        #x_n = torch.stack([x[:, t_ind-self.window_size//2:t_ind+self.window_size//2] for t_ind in t_n])
+        x_n = torch.stack([x[ t_ind-self.window_size//2:t_ind+self.window_size//2] for t_ind in t_n])
 
         if len(x_n)==0:
             rand_t = np.random.randint(0,self.window_size//5)
@@ -153,8 +158,11 @@ def epoch_run(loader, disc_model, encoder, device, w=0, optimizer=None, train=Tr
     epoch_acc = 0
     batch_count = 0
     for x_t, x_p, x_n, _ in loader:
-        mc_sample = x_p.shape[1]
+        mc_sample = x_p.shape[0]
+        ###############################################################################################################
         batch_size, f_size, len_size = x_t.shape
+        #f_size, len_size = x_t.shape
+        
         x_p = x_p.reshape((-1, f_size, len_size))
         x_n = x_n.reshape((-1, f_size, len_size))
         x_t = np.repeat(x_t, mc_sample, axis=0)#create multiple samples for each time point for monte carlo sampling
@@ -200,7 +208,10 @@ def learn_encoder(x, encoder, window_size, w, lr=0.001, decay=0.005, mc_sample_s
             encoder = RnnEncoder(hidden_size=100, in_channel=561, encoding_size=10, device=device)
             batch_size = 10
 
-            #insert here another elif with different dataset and encoder
+        elif 'yahoo' in path: #yahoo dataset, 1 feature, RNN encoder with 100 hidden units
+            encoder = RnnEncoder(hidden_size=100, in_channel=1, encoding_size=10, device=device)
+            batch_size = 10 
+
 
         if not os.path.exists('./ckpt/%s'%path):#create checkpoint folder
             os.mkdir('./ckpt/%s'%path)
@@ -347,8 +358,6 @@ def main(is_train, data_type, cv, w, cont, epochs):
                                   device=device, augment=100, cv=cv_ind, title='TNC')
             exp = WFClassificationExperiment(window_size=window_size, cv=cv_ind)
             exp.run(data='waveform', n_epochs=10, lr_e2e=0.0001, lr_cls=0.01)
-    '''
-
     # Human Activity Recognition (HAR) data
     if data_type == 'har':
         #set window size 
@@ -361,6 +370,7 @@ def main(is_train, data_type, cv, w, cont, epochs):
 
             with open(os.path.join(path, 'x_train.pkl'), 'rb') as f:
                 x = pickle.load(f)
+            print(torch.Tensor(x)[0])
             learn_encoder(torch.Tensor(x), encoder, w=w, lr=1e-3, decay=1e-5, n_epochs=epochs, window_size=window_size,
                           path='har', mc_sample_size=20, device=device, augmentation=5, n_cross_val=cv)
             
@@ -385,6 +395,48 @@ def main(is_train, data_type, cv, w, cont, epochs):
                     print('===> lr: ', lr)
                     tnc_acc, tnc_auc, e2e_acc, e2e_auc = exp.run(data='har', n_epochs=50, lr_e2e=lr, lr_cls=lr)
                     print('TNC acc: %.2f \t TNC auc: %.2f \t E2E acc: %.2f \t E2E auc: %.2f'%(tnc_acc, tnc_auc, e2e_acc, e2e_auc))
+    
+
+    '''
+
+
+    # Yahoo data
+
+    if data_type == 'yahoo':
+        #set window size 
+        window_size = 40
+        path = './data/yahoo_data/'
+        #initialization of encoder
+        encoder = RnnEncoder(hidden_size=100, in_channel=561, encoding_size=10, device=device)
+        if is_train: #train the Rnn encoder on the training set
+
+            with open(os.path.join(path, 'yahoo_x_train.pkl'), 'rb') as f:
+                x = pickle.load(f)
+            print(torch.Tensor(x)[0].shape)
+            learn_encoder(torch.Tensor(x), encoder, w=w, lr=1e-3, decay=1e-5, n_epochs=epochs, window_size=window_size,
+                        path='yahoo', mc_sample_size=20, device=device, augmentation=5, n_cross_val=cv)
+        else: #test the encoder on the test set
+            with open(os.path.join(path, 'yahoo_x_test.pkl'), 'rb') as f:
+                x_test = pickle.load(f)
+            with open(os.path.join(path, 'yahoo_y_test.pkl'), 'rb') as f:
+                y_test = pickle.load(f)
+            checkpoint = torch.load('./ckpt/%s/checkpoint_0.pth.tar' % (data_type))
+            encoder.load_state_dict(checkpoint['encoder_state_dict'])
+            encoder = encoder.to(device)
+            #track_encoding(x_test[0,:,:], y_test[0,:], encoder, window_size, 'har') #used to plot the encoding
+            for cv_ind in range(cv):
+                plot_distribution(x_test, y_test, encoder, window_size=window_size, path='yahoo', device=device,
+                                augment=100, cv=cv_ind, title='TNC')
+                
+                #set up the classification experiment
+                exp = ClassificationPerformanceExperiment(n_states=6, encoding_size=10, path='yahoo', hidden_size=100,
+                                                        in_channel=561, window_size=4, cv=cv_ind)
+                # Run cross validation for classification
+                for lr in [0.001, 0.01, 0.1]:
+                    print('===> lr: ', lr)
+                    tnc_acc, tnc_auc, e2e_acc, e2e_auc = exp.run(data='yahoo', n_epochs=50, lr_e2e=lr, lr_cls=lr)
+                    print('TNC acc: %.2f \t TNC auc: %.2f \t E2E acc: %.2f \t E2E auc: %.2f'%(tnc_acc, tnc_auc, e2e_acc, e2e_auc))
+
 
 
 if __name__ == '__main__':

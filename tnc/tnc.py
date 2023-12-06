@@ -157,12 +157,9 @@ def epoch_run(loader, disc_model, encoder, device, w=0, optimizer=None, train=Tr
     epoch_acc = 0
     batch_count = 0
     for x_t, x_p, x_n, _ in loader:
+        #mc_sample = x_p.shape[0]
+        mc_sample = x_p.shape[1]
 
-        print("x_t shape: ", x_t.shape)
-        print("x_p shape: ", x_p.shape)
-        print("x_n shape: ", x_n.shape)
-
-        mc_sample = x_p.shape[0]
         batch_size, len_size = x_t.shape
         f_size = 1
         x_t = x_t.reshape((-1, f_size, len_size))
@@ -177,12 +174,6 @@ def epoch_run(loader, disc_model, encoder, device, w=0, optimizer=None, train=Tr
         z_t = encoder(x_t)
         z_p = encoder(x_p)
         z_n = encoder(x_n)
-
-        print("z_t shape: ", z_t.shape)
-        print("z_p shape: ", z_p.shape)
-        print("z_n shape: ", z_n.shape)
-
-        ##########################################################################################################
 
         d_p = disc_model(z_t, z_p) #output of the discriminator, if close to 1, then the two inputs are close
         d_n = disc_model(z_t, z_n)
@@ -244,10 +235,9 @@ def learn_encoder(x, encoder, window_size, w, lr=0.001, decay=0.005, mc_sample_s
             # Create the dataset and dataloader
             trainset = TNCDataset(x=torch.Tensor(x[:n_train]), mc_sample_size=mc_sample_size,
                                   window_size=window_size, augmentation=augmentation, adf=True)
-                        
-            
+            # x_p and x_n are inside a 2D array, each row is a sample of 40 timestamps, we have 20 elements 
+
             train_loader = data.DataLoader(trainset, batch_size=batch_size, shuffle=True, num_workers=3)
-            
                 
             # Create the validation set (20% of the data)
             validset = TNCDataset(x=torch.Tensor(x[n_train:]), mc_sample_size=mc_sample_size,
@@ -412,22 +402,21 @@ def main(is_train, data_type, cv, w, cont, epochs):
     
 
     '''
-
-
     # Yahoo data
-
     if data_type == 'yahoo':
         #set window size 
-        window_size = 50
+        window_size = 30
         path = './data/yahoo_data/'
         #initialization of encoder
         encoder = RnnEncoder(hidden_size=100, in_channel=1, encoding_size=10, device=device)
+
         if is_train: #train the Rnn encoder on the training set
 
             with open(os.path.join(path, 'yahoo_x_train.pkl'), 'rb') as f:
                 x = pickle.load(f)
             learn_encoder(torch.Tensor(x), encoder, w=w, lr=1e-3, decay=1e-5, n_epochs=epochs, window_size=window_size,
                         path='yahoo', mc_sample_size=20, device=device, augmentation=5, n_cross_val=cv)
+            
         else: #test the encoder on the test set
             with open(os.path.join(path, 'yahoo_x_test.pkl'), 'rb') as f:
                 x_test = pickle.load(f)
@@ -438,12 +427,12 @@ def main(is_train, data_type, cv, w, cont, epochs):
             encoder = encoder.to(device)
             #track_encoding(x_test[0,:,:], y_test[0,:], encoder, window_size, 'har') #used to plot the encoding
             for cv_ind in range(cv):
-                plot_distribution(x_test, y_test, encoder, window_size=window_size, path='yahoo', device=device,
-                                augment=100, cv=cv_ind, title='TNC')
+                #plot_distribution(x_test, y_test, encoder, window_size=window_size, path='yahoo', device=device,
+                #                augment=100, cv=cv_ind, title='TNC')
                 
                 #set up the classification experiment
-                exp = ClassificationPerformanceExperiment(n_states=6, encoding_size=10, path='yahoo', hidden_size=100,
-                                                        in_channel=561, window_size=4, cv=cv_ind)
+                exp = ClassificationPerformanceExperiment(n_states=2, encoding_size=10, path='yahoo', hidden_size=100,
+                                                        in_channel=1, window_size=30, cv=cv_ind)
                 # Run cross validation for classification
                 for lr in [0.001, 0.01, 0.1]:
                     print('===> lr: ', lr)

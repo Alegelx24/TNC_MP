@@ -18,10 +18,10 @@ from sklearn.neighbors import KNeighborsClassifier
 def create_simulated_dataset(window_size=50, path='./data/simulated_data/', batch_size=100):
     if not os.listdir(path):
         raise ValueError('Data does not exist')
-    x = pickle.load(open(os.path.join(path, 'x_train.pkl'), 'rb'))
-    y = pickle.load(open(os.path.join(path, 'state_train.pkl'), 'rb'))
-    x_test = pickle.load(open(os.path.join(path, 'x_test.pkl'), 'rb'))
-    y_test = pickle.load(open(os.path.join(path, 'state_test.pkl'), 'rb'))
+    x = pickle.load(open(os.path.join(path, 'yahoo_x_train.pkl'), 'rb'))
+    y = pickle.load(open(os.path.join(path, 'yahoo_y_train.pkl'), 'rb'))
+    x_test = pickle.load(open(os.path.join(path, 'yahoo_x_test.pkl'), 'rb'))
+    y_test = pickle.load(open(os.path.join(path, 'yahoo_y_test.pkl'), 'rb'))
 
     n_train = int(0.8*len(x))
     n_valid = len(x) - n_train
@@ -31,10 +31,10 @@ def create_simulated_dataset(window_size=50, path='./data/simulated_data/', batc
 
     datasets = []
     for set in [(x_train, y_train, n_train), (x_test, y_test, n_test), (x_valid, y_valid, n_valid)]:
-        T = set[0].shape[-1]
-        windows = np.split(set[0][:, :, :window_size * (T // window_size)], (T // window_size), -1)
+        T = torch.Tensor(set[0]).shape[-1]
+        windows = np.split(torch.Tensor(set[0])[:, :window_size * (T // window_size)], (T // window_size), -1)
         windows = np.concatenate(windows, 0)
-        labels = np.split(set[1][:, :window_size * (T // window_size)], (T // window_size), -1)
+        labels = np.split(torch.Tensor(set[1])[:, :window_size * (T // window_size)], (T // window_size), -1)
         labels = np.round(np.mean(np.concatenate(labels, 0), -1))
         datasets.append(data.TensorDataset(torch.Tensor(windows), torch.Tensor(labels)))
 
@@ -138,10 +138,21 @@ def plot_distribution(x_test, y_test, encoder, window_size, path, device, title=
     encoder.load_state_dict(checkpoint['encoder_state_dict'])
     encoder = encoder.to(device)
     n_test = len(x_test)
-    inds = np.random.randint(0, x_test.shape[-1] - window_size, n_test * augment)
-    windows = np.array([x_test[int(i % n_test), :, ind:ind + window_size] for i, ind in enumerate(inds)])
-    windows_state = [np.round(np.mean(y_test[i % n_test, ind:ind + window_size], axis=-1)) for i, ind in
+    #inds = np.random.randint(0, x_test.shape[-1] - window_size, n_test * augment)
+    inds = np.random.randint(0,torch.Tensor(x_test).shape[-1] - window_size, n_test * augment)
+
+    #windows = np.array([x_test[int(i % n_test), :, ind:ind + window_size] for i, ind in enumerate(inds)])
+
+    ###########################################################################################################
+    windows = np.array([torch.Tensor(x_test)[  ind:ind + window_size, int(i % n_test)] for i, ind in enumerate(inds)])
+    
+    
+    
+    #windows_state = [np.round(np.mean(y_test[i % n_test, ind:ind + window_size], axis=-1)) for i, ind in
+    #                 enumerate(inds)]
+    windows_state = [np.round(np.mean(torch.Tensor(y_test)[i % n_test, ind:ind + window_size], axis=-1)) for i, ind in
                      enumerate(inds)]
+    
     encodings = encoder(torch.Tensor(windows).to(device))
 
     tsne = TSNE(n_components=2)

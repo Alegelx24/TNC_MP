@@ -29,7 +29,7 @@ class ClassificationPerformanceExperiment():
         # Build a new encoder to train end-to-end with a classifier
         self.e2e_model = E2EStateClassifier(hidden_size=hidden_size, in_channel=in_channel, encoding_size=encoding_size, output_size=n_states)
 
-        data_path = './data/HAR_data/' if 'har' in path else './data/simulated_data/'
+        data_path = './data/HAR_data/' if 'har' in path else './data/yahoo_data/' if 'yahoo' in path else './data/simulated_data/'
         self.train_loader, self.valid_loader, self.test_loader = create_simulated_dataset\
             (window_size=window_size, path=data_path, batch_size=100)
 

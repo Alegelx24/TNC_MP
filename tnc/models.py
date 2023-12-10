@@ -3,7 +3,7 @@ import torch.nn as nn
 
 
 class RnnEncoder(torch.nn.Module):
-    def __init__(self, hidden_size, in_channel, encoding_size, cell_type='GRU', num_layers=1, device='cpu', dropout=0, bidirectional=True):
+    def __init__(self, hidden_size, in_channel, encoding_size, cell_type='GRU', num_layers=1, device='cpu', dropout=0, bidirectional=True, mask_mode="all"):
         super(RnnEncoder, self).__init__()
         self.hidden_size = hidden_size
         self.in_channel = in_channel
@@ -12,6 +12,7 @@ class RnnEncoder(torch.nn.Module):
         self.encoding_size = encoding_size
         self.bidirectional = bidirectional
         self.device = device
+        self.mask_mode = mask_mode
 
         self.nn = torch.nn.Sequential(torch.nn.Linear(self.hidden_size*(int(self.bidirectional) + 1), self.encoding_size)).to(self.device)
         if cell_type=='GRU':
@@ -24,7 +25,7 @@ class RnnEncoder(torch.nn.Module):
         else:
             raise ValueError('Cell type not defined, must be one of the following {GRU, LSTM, RNN}')
 
-    def forward(self, x):
+    def forward(self, x, mask=None):
         x = x.permute(2,0,1)
         if self.cell_type=='GRU':
             past = torch.zeros(self.num_layers * (int(self.bidirectional) + 1), x.shape[1], self.hidden_size).to(self.device)
@@ -32,9 +33,29 @@ class RnnEncoder(torch.nn.Module):
             h_0 = torch.zeros(self.num_layers * (int(self.bidirectional) + 1), (x.shape[1]), self.hidden_size).to(self.device)
             c_0 = torch.zeros(self.num_layers * (int(self.bidirectional) + 1), (x.shape[1]), self.hidden_size).to(self.device)
             past = (h_0, c_0)
+
+        # Compute RNN output for all mask modes
         out, _ = self.rnn(x.to(self.device), past)  # out shape = [seq_len, batch_size, num_directions*hidden_size]
-        encodings = self.nn(out[-1].squeeze(0))
+
+        if mask is None:
+            mask = self.mask_mode
+        
+
+        # Apply masking based on the mask mode
+        if mask == "all":    
+            encodings = self.nn(out[-1].squeeze(0))
+        elif mask == "mask_last":
+            mask = x.new_full((x.size(1), x.size(0)), True, dtype=torch.bool)
+            mask[:, -1] = False
+            out = out.transpose(0, 1)  # Transpose out to match mask dimensions
+            out[~mask] = 0
+            out = out.transpose(0, 1)  # Transpose back to original dimensions
+            encodings = self.nn(out[-1].squeeze(0))
+        else:
+            raise ValueError('Mask mode not defined, must be one of the following {all, mask_last}')
+
         return encodings
+
 
 
 class StateClassifier(torch.nn.Module):

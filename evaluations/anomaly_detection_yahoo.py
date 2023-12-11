@@ -10,7 +10,7 @@ from sklearn.utils import column_or_1d
 device = 'cuda' if torch.cuda.is_available() else 'cpu'
 
 encoder = RnnEncoder(hidden_size=100, in_channel=1, encoding_size=10, device=device)
-tcl_checkpoint = torch.load('./ckpt/yahoo/checkpoint_0.pth.tar')
+tcl_checkpoint = torch.load('./ckpt/yahoo/checkpoint_size10.pth.tar')
 # tcl_checkpoint = torch.load('./ckpt/waveform_trip/checkpoint.pth.tar')
 encoder.load_state_dict(tcl_checkpoint['encoder_state_dict'])
 encoder.eval()
@@ -26,6 +26,8 @@ with open(os.path.join(path, 'yahoo_y_test.pkl'), 'rb') as f:
 
 x_test=torch.Tensor(x_test)
 y_test=torch.Tensor(y_test)
+
+
 
 T = x_test.shape[-1]
 

@@ -95,6 +95,34 @@ def np_shift(arr, num, fill_value=np.nan):
         result[:] = arr
     return result
 
+def extract_sliding_window_repr(encoder, data, sliding_padding=100, mask="all"):
+       # Convert data to a PyTorch tensor and add necessary dimensions
+    data_tensor = torch.Tensor(data).unsqueeze(0).unsqueeze(0)  # Shape: (1, 1, n_timestamps)
+    
+    n_timestamps = data_tensor.shape[2]
+    representations = []
+
+    # Process each timestamp with sliding window
+    for i in range(n_timestamps):
+        # Define the window boundaries
+        start = max(i - sliding_padding, 0)
+        end = i + 1  # window size is 1
+
+        # Extract the window
+        window = data_tensor[:, :, start:end]
+
+        # Get the representation for this window
+        window_repr = encoder(window, mask=mask)
+
+        # Store the representation (squeeze to remove batch and sequence dimensions)
+        representations.append(window_repr.squeeze(0).squeeze(0))
+
+    # Concatenate all representations along a new dimension
+    full_repr = torch.stack(representations, dim=1)
+
+    return full_repr
+
+
 
 def eval_anomaly_detection(encoder, all_train_data, all_train_labels, all_test_data, all_test_labels, all_test_timestamps, delay):
     t = time.time()
@@ -108,28 +136,29 @@ def eval_anomaly_detection(encoder, all_train_data, all_train_labels, all_test_d
         train_data = all_train_data[k]
         test_data = all_test_data[k].squeeze(0)
 
+
         '''
         full_repr = encoder(
             np.concatenate([train_data, test_data]).reshape(1, -1, 1),
             mask='mask_last'
         ).squeeze()
         '''
+
+        # Assuming train_data and test_data are your datasets
+        full_repr_train = extract_sliding_window_repr(encoder, train_data, sliding_padding=2)
+        full_repr_test = extract_sliding_window_repr(encoder, test_data, sliding_padding=2)
+      
+        '''
         full_repr_train = encoder(
             torch.Tensor(train_data).unsqueeze(0).unsqueeze(0),
             mask='mask_last'
         )
-        
+
         full_repr_test = encoder(
             torch.Tensor(test_data).unsqueeze(0).unsqueeze(0),
             mask='mask_last'
         )
 
-        #full_repr = np.random.rand(*full_repr.shape)
-       
-        all_train_repr[k] = full_repr_train
-        all_test_repr[k] = full_repr_test
-
-        
         full_repr_train_wom = encoder(
            torch.Tensor(train_data).unsqueeze(0).unsqueeze(0),
            mask='all'
@@ -139,11 +168,19 @@ def eval_anomaly_detection(encoder, all_train_data, all_train_labels, all_test_d
             torch.Tensor(test_data).unsqueeze(0).unsqueeze(0),
             mask='all'
         )
+        '''
+               
+        all_train_repr[k] = full_repr_train
+        all_test_repr[k] = full_repr_test
+
+        full_repr_train_wom = extract_sliding_window_repr(encoder, train_data, sliding_padding=2, mask="all")
+        full_repr_test_wom = extract_sliding_window_repr(encoder, test_data, sliding_padding=2, mask="all")
+
         
-        '''
-        full_repr_train_wom = np.random.rand(*full_repr_train_wom.shape)
-        full_repr_test_wom = np.random.rand(*full_repr_test_wom.shape)
-        '''
+        
+        #full_repr_train_wom = np.random.rand(*full_repr_train_wom.shape)
+        #full_repr_test_wom = np.random.rand(*full_repr_test_wom.shape)
+        
 
         all_train_repr_wom[k] = full_repr_train_wom
         all_test_repr_wom[k] = full_repr_test_wom
@@ -159,9 +196,9 @@ def eval_anomaly_detection(encoder, all_train_data, all_train_labels, all_test_d
         test_timestamps = all_test_timestamps[k]
 
 
-        train_err = np.abs(all_train_repr_wom[k].detach().cpu() - all_train_repr[k].detach().cpu())
+        train_err = np.abs(all_train_repr_wom[k].detach().cpu() - all_train_repr[k].detach().cpu()).sum(axis=1)
         print("train_err", train_err.sum())
-        test_err = np.abs(all_test_repr_wom[k].detach().cpu() - all_test_repr[k].detach().cpu())
+        test_err = np.abs(all_test_repr_wom[k] - all_test_repr[k]).sum(axis=1)
 
 
         ma = np_shift(bn.move_mean(np.concatenate([train_err, test_err]), 20), 1)

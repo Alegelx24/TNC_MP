@@ -95,33 +95,40 @@ def np_shift(arr, num, fill_value=np.nan):
         result[:] = arr
     return result
 
-def extract_sliding_window_repr(encoder, data, sliding_padding=100, mask="all"):
-       # Convert data to a PyTorch tensor and add necessary dimensions
+
+def extract_sliding_window_repr(encoder, data, sliding_padding=100, mask="all", batch_size=100):
+    # Convert data to a PyTorch tensor and add necessary dimensions
     data_tensor = torch.Tensor(data).unsqueeze(0).unsqueeze(0)  # Shape: (1, 1, n_timestamps)
     
     n_timestamps = data_tensor.shape[2]
     representations = []
 
-    # Process each timestamp with sliding window
-    for i in range(n_timestamps):
-        # Define the window boundaries
-        start = max(i - sliding_padding, 0)
-        end = i + 1  # window size is 1
+    # Process in batches
+    for i in range(0, n_timestamps, batch_size):
+        batch_reprs = []
+        for j in range(i, min(i + batch_size, n_timestamps)):
+            # Define the window boundaries
+            start = max(j - sliding_padding, 0)
+            end = j + 1  # window size is 1
 
-        # Extract the window
-        window = data_tensor[:, :, start:end]
+            # Extract the window
+            window = data_tensor[:, :, start:end]
 
-        # Get the representation for this window
-        window_repr = encoder(window, mask=mask)
+            # Get the representation for this window
+            window_repr = encoder(window, mask=mask)
 
-        # Store the representation (squeeze to remove batch and sequence dimensions)
-        representations.append(window_repr.squeeze(0).squeeze(0))
+            # Store the representation (squeeze to remove batch and sequence dimensions)
+            batch_reprs.append(window_repr.squeeze(0).squeeze(0))
+
+        # Concatenate batch representations and add to main list
+        if batch_reprs:
+            batch_reprs = torch.stack(batch_reprs, dim=1)
+            representations.append(batch_reprs)
 
     # Concatenate all representations along a new dimension
-    full_repr = torch.stack(representations, dim=1)
+    full_repr = torch.cat(representations, dim=1)
 
     return full_repr
-
 
 
 def eval_anomaly_detection(encoder, all_train_data, all_train_labels, all_test_data, all_test_labels, all_test_timestamps, delay):
@@ -145,8 +152,8 @@ def eval_anomaly_detection(encoder, all_train_data, all_train_labels, all_test_d
         '''
 
         # Assuming train_data and test_data are your datasets
-        full_repr_train = extract_sliding_window_repr(encoder, train_data, sliding_padding=2)
-        full_repr_test = extract_sliding_window_repr(encoder, test_data, sliding_padding=2)
+        full_repr_train = extract_sliding_window_repr(encoder, train_data, sliding_padding=10, mask="mask_last",)
+        full_repr_test = extract_sliding_window_repr(encoder, test_data, sliding_padding=10, mask="mask_last")
       
         '''
         full_repr_train = encoder(
@@ -173,13 +180,13 @@ def eval_anomaly_detection(encoder, all_train_data, all_train_labels, all_test_d
         all_train_repr[k] = full_repr_train
         all_test_repr[k] = full_repr_test
 
-        full_repr_train_wom = extract_sliding_window_repr(encoder, train_data, sliding_padding=2, mask="all")
-        full_repr_test_wom = extract_sliding_window_repr(encoder, test_data, sliding_padding=2, mask="all")
+        full_repr_train_wom = extract_sliding_window_repr(encoder, train_data, sliding_padding=10, mask="all")
+        full_repr_test_wom = extract_sliding_window_repr(encoder, test_data, sliding_padding=10, mask="all")
 
         
         
-        #full_repr_train_wom = np.random.rand(*full_repr_train_wom.shape)
-        #full_repr_test_wom = np.random.rand(*full_repr_test_wom.shape)
+        #full_repr_train_wom = np.random.rand(*full_repr_train.shape)
+        #full_repr_test_wom = np.random.rand(*full_repr_test.shape)
         
 
         all_train_repr_wom[k] = full_repr_train_wom

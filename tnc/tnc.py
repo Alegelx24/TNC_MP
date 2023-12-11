@@ -210,7 +210,7 @@ def learn_encoder(x, encoder, window_size, w, lr=0.001, decay=0.005, mc_sample_s
             batch_size = 10
 
         elif 'yahoo' in path: #yahoo dataset, 1 feature, RNN encoder with 100 hidden units
-            encoder = RnnEncoder(hidden_size=100, in_channel=1, encoding_size=10, device=device)
+            encoder = RnnEncoder(hidden_size=100, in_channel=1, encoding_size=1680, device=device)
             batch_size = 10 
 
 
@@ -408,7 +408,7 @@ def main(is_train, data_type, cv, w, cont, epochs):
         window_size = 30
         path = './data/yahoo_data/'
         #initialization of encoder
-        encoder = RnnEncoder(hidden_size=100, in_channel=1, encoding_size=10, device=device)
+        encoder = RnnEncoder(hidden_size=100, in_channel=1, encoding_size=1680, device=device)
 
         if is_train: #train the Rnn encoder on the training set
 

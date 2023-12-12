@@ -296,7 +296,7 @@ def learn_encoder(x, encoder, window_size, w, lr=0.001, decay=0.005, mc_sample_s
     return encoder
 
 # Main function
-def main(is_train, data_type, cv, w, cont, epochs, encoding_size):
+def main(is_train, data_type, cv, w, cont, epochs, encoding_size, matrix_profile):
     if not os.path.exists("./plots"):
         os.mkdir("./plots")
     if not os.path.exists("./ckpt/"):

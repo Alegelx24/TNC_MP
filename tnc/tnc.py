@@ -61,7 +61,7 @@ class TNCDataset(data.Dataset): #dataset class to model the set for TNC
         adf (bool, optional): Whether to use ADF for epsilon calculation. Defaults to False.
     """
 
-    def __init__(self, x, mc_sample_size, window_size, augmentation, epsilon=3, state=None, adf=False):
+    def __init__(self, x, mc_sample_size, window_size, augmentation, epsilon=3, state=None, adf=False, mp=None):
         super(TNCDataset, self).__init__()
         self.time_series = x
         self.T = x.shape[-1]
@@ -72,6 +72,7 @@ class TNCDataset(data.Dataset): #dataset class to model the set for TNC
         self.state = state
         self.augmentation = augmentation
         self.adf = adf
+        self.mp = mp
         if not self.adf:
             self.epsilon = epsilon
             self.delta = 5*window_size*epsilon
@@ -92,7 +93,15 @@ class TNCDataset(data.Dataset): #dataset class to model the set for TNC
             y_t = -1
         else:
             y_t = torch.round(torch.mean(self.state[ind][t-self.window_size//2:t+self.window_size//2]))
-        return x_t, X_close, X_distant, y_t
+
+        #matrix profile
+        if self.mp is not None:
+            matrix_profile_window = self.mp[ind][t-self.window_size//2:t+self.window_size//2]
+        else:
+            matrix_profile_window = torch.zeros(self.window_size)
+
+
+        return x_t, X_close, X_distant, y_t, matrix_profile_window
 
     def _find_neighours(self, x, t):
         """
@@ -151,14 +160,19 @@ def epoch_run(loader, disc_model, encoder, device, w=0, optimizer=None, train=Tr
         disc_model.eval()
     # loss_fn = torch.nn.BCELoss()
     loss_fn = torch.nn.BCEWithLogitsLoss() #loss function!
+    mp_loss = 0
     encoder.to(device)
     disc_model.to(device)
     epoch_loss = 0
     epoch_acc = 0
     batch_count = 0
-    for x_t, x_p, x_n, _ in loader:
+    alpha = 0.5
+
+    for x_t, x_p, x_n, y_t, matrix_profile_window in loader:
         #mc_sample = x_p.shape[0]
         mc_sample = x_p.shape[1]
+
+        mp_loss = matrix_profile_window.float().mean()
 
         batch_size, len_size = x_t.shape
         f_size = 1
@@ -183,6 +197,9 @@ def epoch_run(loader, disc_model, encoder, device, w=0, optimizer=None, train=Tr
         n_loss_u = loss_fn(d_n, neighbors)
         loss = (p_loss + w*n_loss_u + (1-w)*n_loss)/2
 
+        #hybrid loss
+        loss = (alpha)* loss + (1-alpha)*mp_loss
+
         if train:
             optimizer.zero_grad()
             loss.backward()
@@ -196,7 +213,7 @@ def epoch_run(loader, disc_model, encoder, device, w=0, optimizer=None, train=Tr
 
 #training loop function
 def learn_encoder(x, encoder, window_size, w, lr=0.001, decay=0.005, mc_sample_size=20,
-                  n_epochs=100, path='simulation', device='cpu', augmentation=1, n_cross_val=1, cont=False, encoding_size=180):
+                  n_epochs=100, path='simulation', device='cpu', augmentation=1, n_cross_val=1, cont=False, encoding_size=180, mp=None):
     accuracies, losses = [], []
     for cv in range(n_cross_val): #cross validation loop over n cv folds
         if 'waveform' in path:
@@ -231,13 +248,23 @@ def learn_encoder(x, encoder, window_size, w, lr=0.001, decay=0.005, mc_sample_s
         best_acc = 0
         best_loss = np.inf
 
+        #Matrix profile data, take random subsequence
+        if mp is not None:
+            mp = mp[inds]
+
         for epoch in range(n_epochs+1):
             # Create the dataset and dataloader
-            trainset = TNCDataset(x=torch.Tensor(x[:n_train]), mc_sample_size=mc_sample_size,
-                                  window_size=window_size, augmentation=augmentation, adf=True)
+            if mp is None:
+                trainset = TNCDataset(x=torch.Tensor(x[:n_train]), mc_sample_size=mc_sample_size,
+                                      window_size=window_size, augmentation=augmentation, adf=True)
             # x_p and x_n are inside a 2D array, each row is a sample of 40 timestamps, we have 20 elements 
+            
+            else:
+                trainset = TNCDataset(x=torch.Tensor(x[:n_train]), mc_sample_size=mc_sample_size,
+                                     window_size=window_size, augmentation=augmentation, adf=True, mp = torch.Tensor(mp[:n_train]))
+                
 
-            train_loader = data.DataLoader(trainset, batch_size=batch_size, shuffle=True, num_workers=3)
+            train_loader = data.DataLoader(trainset, batch_size=batch_size, shuffle=True, num_workers=4)
                 
             # Create the validation set (20% of the data)
             validset = TNCDataset(x=torch.Tensor(x[n_train:]), mc_sample_size=mc_sample_size,
@@ -413,8 +440,10 @@ def main(is_train, data_type, cv, w, cont, epochs, encoding_size, matrix_profile
 
             with open(os.path.join(path, 'yahoo_x_train.pkl'), 'rb') as f:
                 x = pickle.load(f)
+            with open(os.path.join(path, 'yahoo_mp_train.pkl'), 'rb') as f:
+                mp = pickle.load(f)
             learn_encoder(torch.Tensor(x), encoder, w=w, lr=1e-3, decay=1e-5, n_epochs=epochs, window_size=window_size,
-                        path='yahoo', mc_sample_size=20, device=device, augmentation=5, n_cross_val=cv, encoding_size=encoding_size)
+                        path='yahoo', mc_sample_size=20, device=device, augmentation=5, n_cross_val=cv, encoding_size=encoding_size, mp=torch.Tensor(mp))
             
         else: #test the encoder on the test set
             with open(os.path.join(path, 'yahoo_x_test.pkl'), 'rb') as f:
@@ -450,9 +479,9 @@ if __name__ == '__main__':
     parser.add_argument('--cont', action='store_true')
     parser.add_argument('--epochs', type=int, default=100)
     parser.add_argument('--encoding_size', type=int, default=180)
-    parser.add_argument('--matrix_profile', type=bool, action='store_true')
+    parser.add_argument('--mp',  action='store_true')
     args = parser.parse_args()
     print('TNC model with w=%f'%args.w)
-    main(args.train, args.data, args.cv, args.w, args.cont, args.epochs, args.encoding_size, args.matrix_profile)
+    main(args.train, args.data, args.cv, args.w, args.cont, args.epochs, args.encoding_size, args.mp)
 
 

@@ -196,7 +196,7 @@ def epoch_run(loader, disc_model, encoder, device, w=0, optimizer=None, train=Tr
 
 #training loop function
 def learn_encoder(x, encoder, window_size, w, lr=0.001, decay=0.005, mc_sample_size=20,
-                  n_epochs=100, path='simulation', device='cpu', augmentation=1, n_cross_val=1, cont=False):
+                  n_epochs=100, path='simulation', device='cpu', augmentation=1, n_cross_val=1, cont=False, encoding_size=180):
     accuracies, losses = [], []
     for cv in range(n_cross_val): #cross validation loop over n cv folds
         if 'waveform' in path:
@@ -210,7 +210,7 @@ def learn_encoder(x, encoder, window_size, w, lr=0.001, decay=0.005, mc_sample_s
             batch_size = 10
 
         elif 'yahoo' in path: #yahoo dataset, 1 feature, RNN encoder with 100 hidden units
-            encoder = RnnEncoder(hidden_size=100, in_channel=1, encoding_size=1680, device=device)
+            encoder = RnnEncoder(hidden_size=100, in_channel=1, encoding_size=encoding_size, device=device)
             batch_size = 10 
 
 
@@ -296,7 +296,7 @@ def learn_encoder(x, encoder, window_size, w, lr=0.001, decay=0.005, mc_sample_s
     return encoder
 
 # Main function
-def main(is_train, data_type, cv, w, cont, epochs):
+def main(is_train, data_type, cv, w, cont, epochs, encoding_size):
     if not os.path.exists("./plots"):
         os.mkdir("./plots")
     if not os.path.exists("./ckpt/"):
@@ -399,23 +399,22 @@ def main(is_train, data_type, cv, w, cont, epochs):
                     print('===> lr: ', lr)
                     tnc_acc, tnc_auc, e2e_acc, e2e_auc = exp.run(data='har', n_epochs=50, lr_e2e=lr, lr_cls=lr)
                     print('TNC acc: %.2f \t TNC auc: %.2f \t E2E acc: %.2f \t E2E auc: %.2f'%(tnc_acc, tnc_auc, e2e_acc, e2e_auc))
-    
-
     '''
+    
     # Yahoo data
     if data_type == 'yahoo':
         #set window size 
         window_size = 30
         path = './data/yahoo_data/'
         #initialization of encoder
-        encoder = RnnEncoder(hidden_size=100, in_channel=1, encoding_size=1680, device=device)
+        encoder = RnnEncoder(hidden_size=100, in_channel=1, encoding_size=encoding_size, device=device)
 
         if is_train: #train the Rnn encoder on the training set
 
             with open(os.path.join(path, 'yahoo_x_train.pkl'), 'rb') as f:
                 x = pickle.load(f)
             learn_encoder(torch.Tensor(x), encoder, w=w, lr=1e-3, decay=1e-5, n_epochs=epochs, window_size=window_size,
-                        path='yahoo', mc_sample_size=20, device=device, augmentation=5, n_cross_val=cv)
+                        path='yahoo', mc_sample_size=20, device=device, augmentation=5, n_cross_val=cv, encoding_size=encoding_size)
             
         else: #test the encoder on the test set
             with open(os.path.join(path, 'yahoo_x_test.pkl'), 'rb') as f:
@@ -450,8 +449,9 @@ if __name__ == '__main__':
     parser.add_argument('--train', action='store_true')
     parser.add_argument('--cont', action='store_true')
     parser.add_argument('--epochs', type=int, default=100)
+    parser.add_argument('--encoding_size', type=int, default=180)
     args = parser.parse_args()
     print('TNC model with w=%f'%args.w)
-    main(args.train, args.data, args.cv, args.w, args.cont, args.epochs)
+    main(args.train, args.data, args.cv, args.w, args.cont, args.epochs, args.encoding_size)
 
 

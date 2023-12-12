@@ -400,7 +400,7 @@ def main(is_train, data_type, cv, w, cont, epochs, encoding_size):
                     tnc_acc, tnc_auc, e2e_acc, e2e_auc = exp.run(data='har', n_epochs=50, lr_e2e=lr, lr_cls=lr)
                     print('TNC acc: %.2f \t TNC auc: %.2f \t E2E acc: %.2f \t E2E auc: %.2f'%(tnc_acc, tnc_auc, e2e_acc, e2e_auc))
     '''
-    
+
     # Yahoo data
     if data_type == 'yahoo':
         #set window size 
@@ -450,8 +450,9 @@ if __name__ == '__main__':
     parser.add_argument('--cont', action='store_true')
     parser.add_argument('--epochs', type=int, default=100)
     parser.add_argument('--encoding_size', type=int, default=180)
+    parser.add_argument('--matrix_profile', type=bool, action='store_true')
     args = parser.parse_args()
     print('TNC model with w=%f'%args.w)
-    main(args.train, args.data, args.cv, args.w, args.cont, args.epochs, args.encoding_size)
+    main(args.train, args.data, args.cv, args.w, args.cont, args.epochs, args.encoding_size, args.matrix_profile)
 
 

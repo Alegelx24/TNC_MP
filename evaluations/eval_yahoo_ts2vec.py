@@ -95,8 +95,39 @@ def np_shift(arr, num, fill_value=np.nan):
         result[:] = arr
     return result
 
+'''
+def extract_sliding_window_repr(encoder, data, sliding_padding=100, mask="all"):
+    # Convert data to a PyTorch tensor and add necessary dimensions
+    data_tensor = torch.Tensor(data).unsqueeze(0).unsqueeze(0)  # Shape: (1, 1, n_timestamps)
+    
+    n_timestamps = data_tensor.shape[2]
+    representations = []
 
-def extract_sliding_window_repr(encoder, data, sliding_padding=100, mask="all", batch_size=100):
+    # Process each timestamp with sliding window
+    for i in range(n_timestamps):
+        # Define the window boundaries
+        start = max(i - sliding_padding, 0)
+        end = i + 1  # window size is 1
+
+        # Extract the window
+        window = data_tensor[:, :, start:end]
+
+        # Get the representation for this window
+        window_repr = encoder(window, mask=mask)
+
+
+        # Store the representation (squeeze to remove batch and sequence dimensions)
+        representations.append(window_repr.squeeze(0).squeeze(0))
+
+    # Concatenate all representations along a new dimension
+    full_repr = torch.stack(representations, dim=0)
+
+    return full_repr
+'''
+
+import torch
+
+def extract_sliding_window_repr(encoder, data, sliding_padding=100, mask="all", batch_size=10):
     # Convert data to a PyTorch tensor and add necessary dimensions
     data_tensor = torch.Tensor(data).unsqueeze(0).unsqueeze(0)  # Shape: (1, 1, n_timestamps)
     
@@ -122,11 +153,11 @@ def extract_sliding_window_repr(encoder, data, sliding_padding=100, mask="all", 
 
         # Concatenate batch representations and add to main list
         if batch_reprs:
-            batch_reprs = torch.stack(batch_reprs, dim=1)
+            batch_reprs = torch.stack(batch_reprs, dim=0)
             representations.append(batch_reprs)
 
     # Concatenate all representations along a new dimension
-    full_repr = torch.cat(representations, dim=1)
+    full_repr = torch.cat(representations, dim=0)
 
     return full_repr
 
@@ -143,6 +174,7 @@ def eval_anomaly_detection(encoder, all_train_data, all_train_labels, all_test_d
         train_data = all_train_data[k]
         test_data = all_test_data[k].squeeze(0)
 
+        #Note: train data tensor shape ([1680])
 
         '''
         full_repr = encoder(
@@ -151,9 +183,12 @@ def eval_anomaly_detection(encoder, all_train_data, all_train_labels, all_test_d
         ).squeeze()
         '''
 
-        # Assuming train_data and test_data are your datasets
-        full_repr_train = extract_sliding_window_repr(encoder, train_data, sliding_padding=10, mask="mask_last",)
-        full_repr_test = extract_sliding_window_repr(encoder, test_data, sliding_padding=10, mask="mask_last")
+        torch.no_grad()
+
+        full_repr_train = extract_sliding_window_repr(encoder, train_data, sliding_padding=50, mask="mask_last",)
+        full_repr_test = extract_sliding_window_repr(encoder, test_data, sliding_padding=50, mask="mask_last")
+
+        #full_repr_test = torch.Tensor(np.random.rand(*full_repr_train.shape))
       
         '''
         full_repr_train = encoder(
@@ -180,35 +215,33 @@ def eval_anomaly_detection(encoder, all_train_data, all_train_labels, all_test_d
         all_train_repr[k] = full_repr_train
         all_test_repr[k] = full_repr_test
 
-        full_repr_train_wom = extract_sliding_window_repr(encoder, train_data, sliding_padding=10, mask="all")
-        full_repr_test_wom = extract_sliding_window_repr(encoder, test_data, sliding_padding=10, mask="all")
-
-        
+        full_repr_train_wom = extract_sliding_window_repr(encoder, train_data, sliding_padding=50, mask="all")
+        full_repr_test_wom = extract_sliding_window_repr(encoder, test_data, sliding_padding=50, mask="all")
         
         #full_repr_train_wom = np.random.rand(*full_repr_train.shape)
-        #full_repr_test_wom = np.random.rand(*full_repr_test.shape)
-        
+        #full_repr_test_wom = np.random.rand(*full_repr_test.shape)      
 
-        all_train_repr_wom[k] = full_repr_train_wom
-        all_test_repr_wom[k] = full_repr_test_wom
+        all_train_repr_wom[k] = torch.Tensor(full_repr_train_wom)
+        all_test_repr_wom[k] = torch.Tensor(full_repr_test_wom)
         
     res_log = []
     labels_log = []
     timestamps_log = []
-    for k in range(all_train_data.size(0)):
+    
+    for k in range(all_train_data.size(0)): #iterate over all datasets subsequences, its ok to do it on training set because it 50% of the data
         train_data = all_train_data[k]
 
         test_data = all_test_data[k]
         test_labels = all_test_labels[k]
         test_timestamps = all_test_timestamps[k]
 
+        print("test_data", test_data.shape, "train shape", train_data.shape, "test_timestamps", test_timestamps.shape)
 
         train_err = np.abs(all_train_repr_wom[k].detach().cpu() - all_train_repr[k].detach().cpu()).sum(axis=1)
         print("train_err", train_err.sum())
-        test_err = np.abs(all_test_repr_wom[k] - all_test_repr[k]).sum(axis=1)
+        test_err = np.abs(all_test_repr_wom[k].detach().cpu() - all_test_repr[k].detach().cpu()).sum(axis=1)
 
-
-        ma = np_shift(bn.move_mean(np.concatenate([train_err, test_err]), 20), 1)
+        ma = np_shift(bn.move_mean(np.concatenate([train_err, test_err]), 21), 1)
         train_err_adj = (train_err - ma[:len(train_err)]) / ma[:len(train_err)]
         test_err_adj = (test_err - ma[len(train_err):]) / ma[len(train_err):]
         train_err_adj = train_err_adj[22:]
@@ -216,6 +249,10 @@ def eval_anomaly_detection(encoder, all_train_data, all_train_labels, all_test_d
         thr = torch.mean(train_err_adj) + 4 * torch.std(train_err_adj)
 
         test_res = (test_err_adj > thr) * 1
+
+        for i in range(len(test_res)):
+            if i >= delay and test_res[i-delay:i].sum() >= 1:
+                test_res[i] = 0
 
         #print("test_res", test_res.shape, )
 
@@ -226,6 +263,7 @@ def eval_anomaly_detection(encoder, all_train_data, all_train_labels, all_test_d
         res_log.append(test_res)
         labels_log.append(test_labels)
         timestamps_log.append(test_timestamps)
+
     t = time.time() - t
     
     eval_res = eval_ad_result(res_log, labels_log, timestamps_log, delay)
@@ -238,8 +276,8 @@ if __name__ == "__main__":
         
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
 
-    encoder = RnnEncoder(hidden_size=100, in_channel=1, encoding_size=1680, device=device)
-    tcl_checkpoint = torch.load('./ckpt/yahoo/checkpoint_0.pth.tar')
+    encoder = RnnEncoder(hidden_size=100, in_channel=1, encoding_size=10, device=device)
+    tcl_checkpoint = torch.load('./ckpt/yahoo/checkpoint_size10.pth.tar')
     # tcl_checkpoint = torch.load('./ckpt/waveform_trip/checkpoint.pth.tar')
     encoder.load_state_dict(tcl_checkpoint['encoder_state_dict'])
     encoder.eval()
@@ -262,6 +300,7 @@ if __name__ == "__main__":
     x_test=torch.Tensor(x_test)
     y_test=torch.Tensor(y_test)
     timestamp_test = torch.arange(y_test.shape[0] * y_test.shape[1]).view(y_test.shape)
+
 
     x_train=torch.Tensor(x_train)
 

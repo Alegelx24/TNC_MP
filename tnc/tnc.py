@@ -97,11 +97,14 @@ class TNCDataset(data.Dataset): #dataset class to model the set for TNC
         #matrix profile
         if self.mp is not None:
             matrix_profile_window = self.mp[ind][t-self.window_size//2:t+self.window_size//2]
+            matrix_profile_value = self.mp[ind][t]
         else:
             matrix_profile_window = torch.zeros(self.window_size)
+            matrix_profile_value = torch.zeros(1)
 
 
-        return x_t, X_close, X_distant, y_t, matrix_profile_window
+
+        return x_t, X_close, X_distant, y_t, matrix_profile_window, matrix_profile_value
 
     def _find_neighours(self, x, t):
         """
@@ -151,7 +154,7 @@ class TNCDataset(data.Dataset): #dataset class to model the set for TNC
         return x_n
 #end of tnc dataset class
 
-def epoch_run(loader, disc_model, encoder, device, w=0, optimizer=None, train=True):
+def epoch_run(loader, disc_model, encoder, device, w=0, optimizer=None, train=True, alpha=1):
     if train:
         encoder.train()
         disc_model.train()
@@ -166,12 +169,21 @@ def epoch_run(loader, disc_model, encoder, device, w=0, optimizer=None, train=Tr
     epoch_loss = 0
     epoch_acc = 0
     batch_count = 0
-    alpha = 0.5
+    
 
-    for x_t, x_p, x_n, y_t, matrix_profile_window in loader:
+    for x_t, x_p, x_n, y_t, matrix_profile_window, matrix_profile_value in loader:
         #mc_sample = x_p.shape[0]
         mc_sample = x_p.shape[1]
 
+
+        #batch mean
+        #flattened_matrix_profile = torch.flatten(matrix_profile_window)
+        #mp_loss = torch.mean(flattened_matrix_profile)
+
+        #single sample discord penalty
+        mp_loss = matrix_profile_value.float()
+
+        # window mean over each sample
         mp_loss = matrix_profile_window.float().mean()
 
         batch_size, len_size = x_t.shape
@@ -213,7 +225,7 @@ def epoch_run(loader, disc_model, encoder, device, w=0, optimizer=None, train=Tr
 
 #training loop function
 def learn_encoder(x, encoder, window_size, w, lr=0.001, decay=0.005, mc_sample_size=20,
-                  n_epochs=100, path='simulation', device='cpu', augmentation=1, n_cross_val=1, cont=False, encoding_size=180, mp=None):
+                  n_epochs=100, path='simulation', device='cpu', augmentation=1, n_cross_val=1, cont=False, encoding_size=180, mp=None, alpha=1):
     accuracies, losses = [], []
     for cv in range(n_cross_val): #cross validation loop over n cv folds
         if 'waveform' in path:
@@ -264,7 +276,7 @@ def learn_encoder(x, encoder, window_size, w, lr=0.001, decay=0.005, mc_sample_s
                                      window_size=window_size, augmentation=augmentation, adf=True, mp = torch.Tensor(mp[:n_train]))
                 
 
-            train_loader = data.DataLoader(trainset, batch_size=batch_size, shuffle=True, num_workers=4)
+            train_loader = data.DataLoader(trainset, batch_size=batch_size, shuffle=True, num_workers=3)
                 
             # Create the validation set (20% of the data)
             validset = TNCDataset(x=torch.Tensor(x[n_train:]), mc_sample_size=mc_sample_size,
@@ -273,9 +285,9 @@ def learn_encoder(x, encoder, window_size, w, lr=0.001, decay=0.005, mc_sample_s
 
             # Run the training    
             epoch_loss, epoch_acc = epoch_run(train_loader, disc_model, encoder, optimizer=optimizer,
-                                              w=w, train=True, device=device)
+                                              w=w, train=True, device=device, alpha= alpha)
             # Run the validation
-            test_loss, test_acc = epoch_run(valid_loader, disc_model, encoder, train=False, w=w, device=device)
+            test_loss, test_acc = epoch_run(valid_loader, disc_model, encoder, train=False, w=w, device=device, alpha= alpha)
             performance.append((epoch_loss, test_loss, epoch_acc, test_acc))
 
             if epoch%10 == 0:
@@ -323,7 +335,7 @@ def learn_encoder(x, encoder, window_size, w, lr=0.001, decay=0.005, mc_sample_s
     return encoder
 
 # Main function
-def main(is_train, data_type, cv, w, cont, epochs, encoding_size, matrix_profile):
+def main(is_train, data_type, cv, w, cont, epochs, encoding_size, matrix_profile=None, alpha=1):
     if not os.path.exists("./plots"):
         os.mkdir("./plots")
     if not os.path.exists("./ckpt/"):
@@ -389,6 +401,7 @@ def main(is_train, data_type, cv, w, cont, epochs, encoding_size, matrix_profile
                                   device=device, augment=100, cv=cv_ind, title='TNC')
             exp = WFClassificationExperiment(window_size=window_size, cv=cv_ind)
             exp.run(data='waveform', n_epochs=10, lr_e2e=0.0001, lr_cls=0.01)
+            
     # Human Activity Recognition (HAR) data
     if data_type == 'har':
         #set window size 
@@ -443,7 +456,7 @@ def main(is_train, data_type, cv, w, cont, epochs, encoding_size, matrix_profile
             with open(os.path.join(path, 'yahoo_mp_train.pkl'), 'rb') as f:
                 mp = pickle.load(f)
             learn_encoder(torch.Tensor(x), encoder, w=w, lr=1e-3, decay=1e-5, n_epochs=epochs, window_size=window_size,
-                        path='yahoo', mc_sample_size=20, device=device, augmentation=5, n_cross_val=cv, encoding_size=encoding_size, mp=torch.Tensor(mp))
+                        path='yahoo', mc_sample_size=20, device=device, augmentation=5, n_cross_val=cv, encoding_size=encoding_size, mp=torch.Tensor(mp), alpha=alpha)
             
         else: #test the encoder on the test set
             with open(os.path.join(path, 'yahoo_x_test.pkl'), 'rb') as f:
@@ -480,8 +493,9 @@ if __name__ == '__main__':
     parser.add_argument('--epochs', type=int, default=100)
     parser.add_argument('--encoding_size', type=int, default=180)
     parser.add_argument('--mp',  action='store_true')
+    parser.add_argument('--alpha', type=float, default=1)
     args = parser.parse_args()
     print('TNC model with w=%f'%args.w)
-    main(args.train, args.data, args.cv, args.w, args.cont, args.epochs, args.encoding_size, args.mp)
+    main(args.train, args.data, args.cv, args.w, args.cont, args.epochs, args.encoding_size, args.mp, args.alpha)
 
 

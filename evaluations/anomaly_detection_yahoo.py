@@ -9,8 +9,8 @@ from sklearn.utils import column_or_1d
 
 device = 'cuda' if torch.cuda.is_available() else 'cpu'
 
-encoder = RnnEncoder(hidden_size=100, in_channel=1, encoding_size=10, device=device)
-tcl_checkpoint = torch.load('./ckpt/yahoo/checkpoint_size10.pth.tar')
+encoder = RnnEncoder(hidden_size=100, in_channel=1, encoding_size=160, device=device)
+tcl_checkpoint = torch.load('./ckpt/yahoo/checkpoint_0.pth.tar')
 # tcl_checkpoint = torch.load('./ckpt/waveform_trip/checkpoint.pth.tar')
 encoder.load_state_dict(tcl_checkpoint['encoder_state_dict'])
 encoder.eval()

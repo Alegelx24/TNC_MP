@@ -96,15 +96,18 @@ class TNCDataset(data.Dataset): #dataset class to model the set for TNC
 
         #matrix profile
         if self.mp is not None:
-            matrix_profile_window = self.mp[ind][t-self.window_size//2:t+self.window_size//2]
-            matrix_profile_value = self.mp[ind][t]
+            matrix_profile_window = self.mp[ind][t-self.window_size//2:t+self.window_size//2] #window mp values
+            matrix_profile_value = self.mp[ind][t] #single sample mp value
+            matrix_profile_window_mean = self.mp[ind][t-self.window_size//2:t+self.window_size//2].mean() #window mp values
+
         else:
             matrix_profile_window = torch.zeros(self.window_size)
             matrix_profile_value = torch.zeros(1)
+            matrix_profile_window_mean = torch.zeros(1)
 
 
 
-        return x_t, X_close, X_distant, y_t, matrix_profile_window, matrix_profile_value
+        return x_t, X_close, X_distant, y_t, matrix_profile_window, matrix_profile_window_mean, matrix_profile_value
 
     def _find_neighours(self, x, t):
         """
@@ -163,39 +166,54 @@ def epoch_run(loader, disc_model, encoder, device, w=0, optimizer=None, train=Tr
         disc_model.eval()
     # loss_fn = torch.nn.BCELoss()
     loss_fn = torch.nn.BCEWithLogitsLoss() #loss function!
+    
+    #mp loss definition
     mp_loss = 0
+
     encoder.to(device)
     disc_model.to(device)
     epoch_loss = 0
     epoch_acc = 0
     batch_count = 0
-    
 
-    for x_t, x_p, x_n, y_t, matrix_profile_window, matrix_profile_value in loader:
+    for x_t, x_p, x_n, _, matrix_profile_window, matrix_profile_window_mean, matrix_profile_value in loader: #iterate over batches
         #mc_sample = x_p.shape[0]
         mc_sample = x_p.shape[1]
+        
+        #single timestamp
+        mp_loss_single_timestamp = matrix_profile_window.float() #should be of shape([10,30])
 
+        #sum over the window
+        mp_loss_sum = matrix_profile_window.float().sum() #should be of shape([1]) 
+        
+        #mp loss over window mean
+        mp_loss_window_mean = matrix_profile_window_mean.float() #should be of shape([10])      
 
-        #batch mean
-        #flattened_matrix_profile = torch.flatten(matrix_profile_window)
-        #mp_loss = torch.mean(flattened_matrix_profile)
+        #mean also over the batches
+        flattened_matrix_profile = torch.flatten(matrix_profile_window)
+        mp_loss_over_window_mean_batches = flattened_matrix_profile.float().mean() #should be of shape([1])
+        #mp_loss_over_window_batches = matrix_profile_window.float().mean() #should be of shape([1])
 
-        #single sample discord penalty
-        mp_loss = matrix_profile_value.float()
+        '''
+        OTHER SOLUTIONS FOR MP LOSS
+        '''
+        threshold = mp_loss_window_mean
+        mp_loss_exp = torch.exp(matrix_profile_value - threshold) - 1
 
-        # window mean over each sample
-        mp_loss = matrix_profile_window.float().mean()
+        anomaly_loss = torch.mean((torch.nn.functional.relu(matrix_profile_value - threshold)), dim=0) # Only penalizes values above the threshold
 
         batch_size, len_size = x_t.shape
+
         f_size = 1
         x_t = x_t.reshape((-1, f_size, len_size))
-      
+
         x_p = x_p.reshape((-1, f_size, len_size))
         x_n = x_n.reshape((-1, f_size, len_size))
         x_t = np.repeat(x_t, mc_sample, axis=0)#create multiple samples for each time point for monte carlo sampling
         neighbors = torch.ones((len(x_p))).to(device)
         non_neighbors = torch.zeros((len(x_n))).to(device)
         x_t, x_p, x_n = x_t.to(device), x_p.to(device), x_n.to(device)
+        #x_t shape [200, 1, 30]
 
         z_t = encoder(x_t)
         z_p = encoder(x_p)
@@ -209,8 +227,11 @@ def epoch_run(loader, disc_model, encoder, device, w=0, optimizer=None, train=Tr
         n_loss_u = loss_fn(d_n, neighbors)
         loss = (p_loss + w*n_loss_u + (1-w)*n_loss)/2
 
+
+        mp_loss = mp_loss_window_mean.mean()
+
         #hybrid loss
-        loss = (alpha)* loss + (1-alpha)*mp_loss
+        loss = (alpha)* loss + (1-alpha)*(mp_loss)
 
         if train:
             optimizer.zero_grad()

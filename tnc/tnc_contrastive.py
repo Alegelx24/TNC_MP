@@ -166,7 +166,10 @@ class TNCDataset_MP_contrastive(data.Dataset): #dataset class to model the set f
             Actually, it takes as parameters the subseries x, the timestamp inside it t, and the mp_subset corresponding to the subseries t.
 
             devo capire come passarle indietro
-            e a che livello si lavora con i find neighbor, cioè devo fare un append negli x
+            e a che livello si lavora con i find neighbor, cioè devo fare un append negli x lontani?
+            devo anche rimuovelro da quelli vicini?
+
+            oppure nella loss potrei aggiungere il contributo dato da quelli vicini ma discordanti
 
             dovrebbe contenere i vicini che però hanno un mp alto, quindi sono discordanti
 

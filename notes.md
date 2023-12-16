@@ -2,6 +2,9 @@
 
 idea random: nella loss mettere contributo dato dalla discriminazione degli encoding del matrix profile
 
+
+
+
 ## Scripts
  
 - ` python -m tnc.tnc --data yahoo --train --encoding_size 160 --mp --alpha 0.5`

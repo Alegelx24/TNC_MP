@@ -16,6 +16,7 @@ from tnc.models import RnnEncoder, WFEncoder
 from tnc.utils import plot_distribution, track_encoding
 from tnc.evaluations import WFClassificationExperiment, ClassificationPerformanceExperiment
 from statsmodels.tsa.stattools import adfuller
+from tnc.tnc_contrastive import TNCDataset_MP_contrastive, epoch_run_MP_contrastive
 
 if not sys.warnoptions:
     import warnings
@@ -156,6 +157,8 @@ class TNCDataset(data.Dataset): #dataset class to model the set for TNC
                 x_n = x[:, T - rand_t - self.window_size:T - rand_t].unsqueeze(0)
         return x_n
 #end of tnc dataset class
+    
+
 
 def epoch_run(loader, disc_model, encoder, device, w=0, optimizer=None, train=True, alpha=1):
     if train:
@@ -244,9 +247,15 @@ def epoch_run(loader, disc_model, encoder, device, w=0, optimizer=None, train=Tr
         batch_count += 1
     return epoch_loss/batch_count, epoch_acc/batch_count #returns the average loss and accuracy for the epoch
 
+
+
+
+
+
 #training loop function
 def learn_encoder(x, encoder, window_size, w, lr=0.001, decay=0.005, mc_sample_size=20,
-                  n_epochs=100, path='simulation', device='cpu', augmentation=1, n_cross_val=1, cont=False, encoding_size=180, mp=None, alpha=1):
+                  n_epochs=100, path='simulation', device='cpu', augmentation=1, n_cross_val=1,
+                  cont=False, encoding_size=180, mp=None, alpha=1,mp_contrastive=False):
     accuracies, losses = [], []
     for cv in range(n_cross_val): #cross validation loop over n cv folds
         if 'waveform' in path:
@@ -258,11 +267,9 @@ def learn_encoder(x, encoder, window_size, w, lr=0.001, decay=0.005, mc_sample_s
         elif 'har' in path: #har dataset, 561 features, RNN encoder with 100 hidden units
             encoder = RnnEncoder(hidden_size=100, in_channel=561, encoding_size=10, device=device)
             batch_size = 10
-
         elif 'yahoo' in path: #yahoo dataset, 1 feature, RNN encoder with 100 hidden units
             encoder = RnnEncoder(hidden_size=100, in_channel=1, encoding_size=encoding_size, device=device)
             batch_size = 10 
-
 
         if not os.path.exists('./ckpt/%s'%path):#create checkpoint folder
             os.mkdir('./ckpt/%s'%path)
@@ -287,14 +294,19 @@ def learn_encoder(x, encoder, window_size, w, lr=0.001, decay=0.005, mc_sample_s
 
         for epoch in range(n_epochs+1):
             # Create the dataset and dataloader
-            if mp is None:
+            if mp is not None and mp_contrastive == False:
                 trainset = TNCDataset(x=torch.Tensor(x[:n_train]), mc_sample_size=mc_sample_size,
-                                      window_size=window_size, augmentation=augmentation, adf=True)
-            # x_p and x_n are inside a 2D array, each row is a sample of 40 timestamps, we have 20 elements 
+                                      window_size=window_size, augmentation=augmentation, adf=True, mp = torch.Tensor(mp[:n_train]))
+            # x_p and x_n are inside a 2D array, each row is a sample of 40 timestamps, we have 20 elements  
+                
+            #Contrastive loss integration with matrix profile
+            elif mp is not None and mp_contrastive == True :
+                trainset = TNCDataset_MP_contrastive(x=torch.Tensor(x[:n_train]), mc_sample_size=mc_sample_size,
+                                     window_size=window_size, augmentation=augmentation, adf=True, mp = torch.Tensor(mp[:n_train])) 
             
             else:
                 trainset = TNCDataset(x=torch.Tensor(x[:n_train]), mc_sample_size=mc_sample_size,
-                                     window_size=window_size, augmentation=augmentation, adf=True, mp = torch.Tensor(mp[:n_train]))
+                                      window_size=window_size, augmentation=augmentation, adf=True)              
                 
 
             train_loader = data.DataLoader(trainset, batch_size=batch_size, shuffle=True, num_workers=3)
@@ -356,7 +368,7 @@ def learn_encoder(x, encoder, window_size, w, lr=0.001, decay=0.005, mc_sample_s
     return encoder
 
 # Main function
-def main(is_train, data_type, cv, w, cont, epochs, encoding_size, matrix_profile=None, alpha=1):
+def main(is_train, data_type, cv, w, cont, epochs, encoding_size, matrix_profile=None, alpha=1, mp_contrastive=False):
     if not os.path.exists("./plots"):
         os.mkdir("./plots")
     if not os.path.exists("./ckpt/"):
@@ -474,10 +486,13 @@ def main(is_train, data_type, cv, w, cont, epochs, encoding_size, matrix_profile
 
             with open(os.path.join(path, 'yahoo_x_train.pkl'), 'rb') as f:
                 x = pickle.load(f)
-            with open(os.path.join(path, 'yahoo_mp_train.pkl'), 'rb') as f:
-                mp = pickle.load(f)
+            if matrix_profile is not None:    
+                with open(os.path.join(path, 'yahoo_mp_train.pkl'), 'rb') as f:
+                    mp = pickle.load(f)
+
             learn_encoder(torch.Tensor(x), encoder, w=w, lr=1e-3, decay=1e-5, n_epochs=epochs, window_size=window_size,
-                        path='yahoo', mc_sample_size=20, device=device, augmentation=5, n_cross_val=cv, encoding_size=encoding_size, mp=torch.Tensor(mp), alpha=alpha)
+                        path='yahoo', mc_sample_size=20, device=device, augmentation=5, n_cross_val=cv, encoding_size=encoding_size,
+                        mp=torch.Tensor(mp), alpha=alpha, mp_contrastive=mp_contrastive)
             
         else: #test the encoder on the test set
             with open(os.path.join(path, 'yahoo_x_test.pkl'), 'rb') as f:
@@ -515,8 +530,9 @@ if __name__ == '__main__':
     parser.add_argument('--encoding_size', type=int, default=180)
     parser.add_argument('--mp',  action='store_true')
     parser.add_argument('--alpha', type=float, default=1)
+    parser.add_argument('--mp_contrastive', action='store_true')
     args = parser.parse_args()
     print('TNC model with w=%f'%args.w)
-    main(args.train, args.data, args.cv, args.w, args.cont, args.epochs, args.encoding_size, args.mp, args.alpha)
+    main(args.train, args.data, args.cv, args.w, args.cont, args.epochs, args.encoding_size, args.mp, args.alpha, args.mp_contrastive)
 
 

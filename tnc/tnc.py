@@ -299,8 +299,8 @@ def learn_encoder(x, encoder, window_size, w, lr=0.001, decay=0.005, mc_sample_s
                                       window_size=window_size, augmentation=augmentation, adf=True, mp = torch.Tensor(mp[:n_train]))
             # x_p and x_n are inside a 2D array, each row is a sample of 40 timestamps, we have 20 elements  
                 
-            #Contrastive loss integration with matrix profile
-            elif mp is not None and mp_contrastive == True :
+            
+            elif mp is not None and mp_contrastive == True : #Contrastive loss integration with matrix profile
                 trainset = TNCDataset_MP_contrastive(x=torch.Tensor(x[:n_train]), mc_sample_size=mc_sample_size,
                                      window_size=window_size, augmentation=augmentation, adf=True, mp = torch.Tensor(mp[:n_train])) 
             
@@ -317,7 +317,11 @@ def learn_encoder(x, encoder, window_size, w, lr=0.001, decay=0.005, mc_sample_s
             valid_loader = data.DataLoader(validset, batch_size=batch_size, shuffle=True)
 
             # Run the training    
-            epoch_loss, epoch_acc = epoch_run(train_loader, disc_model, encoder, optimizer=optimizer,
+            if mp_contrastive == True:
+                epoch_loss, epoch_acc = epoch_run_MP_contrastive(train_loader, disc_model, encoder, optimizer=optimizer,
+                                              w=w, train=True, device=device, alpha= alpha)
+            else:
+                epoch_loss, epoch_acc = epoch_run(train_loader, disc_model, encoder, optimizer=optimizer,
                                               w=w, train=True, device=device, alpha= alpha)
             # Run the validation
             test_loss, test_acc = epoch_run(valid_loader, disc_model, encoder, train=False, w=w, device=device, alpha= alpha)

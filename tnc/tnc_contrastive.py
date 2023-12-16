@@ -23,9 +23,9 @@ device = 'cuda' if torch.cuda.is_available() else 'cpu'
 
 class TNCDataset_MP_contrastive(data.Dataset): #dataset class to model the set for TNC
     """
-    A custom dataset class for TNC (Time Series Nearest Class) dataset.
+        A custom dataset class for TNC (Time Series Nearest Class) dataset.
 
-    Args:
+        Args:
         x (numpy.ndarray): The input time series data.
         mc_sample_size (int): The number of Monte Carlo samples.
         window_size (int): The size of the sliding window.
@@ -48,24 +48,28 @@ class TNCDataset_MP_contrastive(data.Dataset): #dataset class to model the set f
         self.adf = adf
         self.mp = mp
         if not self.adf:
-            self.epsilon = epsilon #it is for the adf test
-            self.delta = 5*window_size*epsilon 
+            self.epsilon = epsilon
+            self.delta = 5*window_size*epsilon
 
     def __len__(self):
         return len(self.time_series)*self.augmentation
 
     def __getitem__(self, ind):
         ind = ind%len(self.time_series)
-        t = np.random.randint(2*self.window_size, self.T-2*self.window_size) #time series index
+        t = np.random.randint(2*self.window_size, self.T-2*self.window_size)
+        #x_t = self.time_series[ind][:,t-self.window_size//2:t+self.window_size//2]
         x_t = self.time_series[ind][t-self.window_size//2:t+self.window_size//2]
 
-        #retrieval of positive and negative samples
+        #plt.savefig('./plots/%s_seasonal.png'%ind)#save the plot of the time series
         X_close = self._find_neighours(self.time_series[ind], t) #these are the positive samples, x_p
         X_distant = self._find_non_neighours(self.time_series[ind], t) # these are the negative samples, x_n 
+        X_mp = self._find__negative_discords(self.time_series[ind], t, self.mp[ind])
+        print("X_mp shape", X_mp.shape)
         if self.state is None:
             y_t = -1
         else:
             y_t = torch.round(torch.mean(self.state[ind][t-self.window_size//2:t+self.window_size//2]))
+
         return x_t, X_close, X_distant, y_t
 
     def _find_neighours(self, x, t):
@@ -96,7 +100,38 @@ class TNCDataset_MP_contrastive(data.Dataset): #dataset class to model the set f
         #x_p = torch.stack([x[:, t_ind-self.window_size//2:t_ind+self.window_size//2] for t_ind in t_p])
         x_p = torch.stack([x[ t_ind-self.window_size//2:t_ind+self.window_size//2] for t_ind in t_p])
 
+
         return x_p
+    
+    
+    def _find_neighours_timestamp(self, x, t):
+        """
+        Find neighboring samples around a given time point.
+        Args: x (torch.Tensor): Input time series data.
+              t (int): Time index.
+        Returns: torch.Tensor: Neighboring samples around the given time point.
+        """
+        T = self.time_series.shape[-1]
+        if self.adf:
+            gap = self.window_size
+            corr = []
+            for w_t in range(self.window_size, 4*self.window_size, gap):
+                try:
+                    p_val = 0
+                    for f in range(x.shape[-2]):
+                        p = adfuller(np.array(x[f, max(0, t - w_t):min(x.shape[-1], t + w_t)].reshape(-1, )))[1]
+                        p_val += 0.01 if math.isnan(p) else p
+                    corr.append(p_val/x.shape[-2])
+                except:
+                    corr.append(0.6)
+            self.epsilon = len(corr) if len(np.where(np.array(corr) >= 0.01)[0]) == 0 else (np.where(np.array(corr) >= 0.01)[0][0] + 1)
+            self.delta = 5*self.epsilon*self.window_size
+        ## Random from a Gaussian
+        t_p = [int(t+np.random.randn()*self.epsilon*self.window_size) for _ in range(self.mc_sample_size)]
+        t_p = [max(self.window_size//2+1, min(t_pp, T-self.window_size//2)) for t_pp in t_p]
+
+        return  t_p
+    
 
     def _find_non_neighours(self, x, t): #find non-neighbors returns negative samples
         T = self.time_series.shape[-1]
@@ -114,10 +149,31 @@ class TNCDataset_MP_contrastive(data.Dataset): #dataset class to model the set f
             else:
                 x_n = x[:, T - rand_t - self.window_size:T - rand_t].unsqueeze(0)
         return x_n
-#end of tnc dataset class
     
+    def _find__negative_discords(self, x, t, mp_subset):
 
+        t_p= self._find_neighours_timestamp(x, t)
+        mp_p = torch.stack([mp_subset[ t_ind-self.window_size//2:t_ind+self.window_size//2] for t_ind in t_p]) #shape (mc_sample_size, window_size)
+         
+        threshold = 10
+        mask = mp_p.mean(dim=1) > threshold
 
+        # Apply the mask to t_p to get the desired timestamps
+        t_p = [t_p[i] for i in range(len(t_p)) if mask[i]]
+            
+        '''
+            THIS IS THE FUNCTION TO FIND THE WINDOWS AMONG THE NEIGHBOR THAT INSTEAT SHOULD BE THE NEGATIVE SAMPLES BECAUSE OF ITS DISCORDANCE
+            Actually, it takes as parameters the subseries x, the timestamp inside it t, and the mp_subset corresponding to the subseries t.
+
+            devo capire come passarle indietro
+            e a che livello si lavora con i find neighbor, cioè devo fare un append negli x
+
+            dovrebbe contenere i vicini che però hanno un mp alto, quindi sono discordanti
+
+        '''
+
+        return mp_p
+#end of tnc dataset class
 
 def epoch_run_MP_contrastive(loader, disc_model, encoder, device, w=0, optimizer=None, train=True, alpha=1):
     if train:
@@ -141,7 +197,7 @@ def epoch_run_MP_contrastive(loader, disc_model, encoder, device, w=0, optimizer
     for x_t, x_p, x_n, _ in loader: #iterate over batches
         #mc_sample = x_p.shape[0]
         mc_sample = x_p.shape[1]
-
+        
         batch_size, len_size = x_t.shape
 
         f_size = 1
@@ -167,9 +223,7 @@ def epoch_run_MP_contrastive(loader, disc_model, encoder, device, w=0, optimizer
         n_loss_u = loss_fn(d_n, neighbors)
         loss = (p_loss + w*n_loss_u + (1-w)*n_loss)/2
 
-        #hybrid loss
-        loss =  loss 
-
+        
         if train:
             optimizer.zero_grad()
             loss.backward()
@@ -180,4 +234,3 @@ def epoch_run_MP_contrastive(loader, disc_model, encoder, device, w=0, optimizer
         epoch_loss += loss.item()
         batch_count += 1
     return epoch_loss/batch_count, epoch_acc/batch_count #returns the average loss and accuracy for the epoch
-

@@ -9,6 +9,9 @@ idea random: nella loss mettere contributo dato dalla discriminazione degli enco
  
 - ` python -m tnc.tnc --data yahoo --train --encoding_size 160 --mp --alpha 0.5`
 - ` python -m evaluations.anomaly_detection_yahoo --data yahoo `
+- ` python -m tnc.tnc --data yahoo --train --encoding_size 160 --mp --mp_contrastive `
+
+
 
 ## Parameters to take into account
 
@@ -17,6 +20,8 @@ Encoder
 - hidden size
 - alpha (loss parameter)
 - sliding window
+- mc_sample_size: number of neighbor window to extract
+- weight w inside of the positive unlabeling
 
 Evaluation
 - sliding padding

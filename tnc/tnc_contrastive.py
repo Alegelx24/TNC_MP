@@ -63,8 +63,8 @@ class TNCDataset_MP_contrastive(data.Dataset): #dataset class to model the set f
         #plt.savefig('./plots/%s_seasonal.png'%ind)#save the plot of the time series
         X_close = self._find_neighours(self.time_series[ind], t) #these are the positive samples, x_p
         X_distant = self._find_non_neighours(self.time_series[ind], t) # these are the negative samples, x_n 
-        X_mp = self._find__negative_discords(self.time_series[ind], t, self.mp[ind])
-        print("X_mp shape", X_mp.shape)
+        X_mp = self._find__negative_discords_neighborhood(self.time_series[ind], t, self.mp[ind])
+
         if self.state is None:
             y_t = -1
         else:
@@ -105,12 +105,7 @@ class TNCDataset_MP_contrastive(data.Dataset): #dataset class to model the set f
     
     
     def _find_neighours_timestamp(self, x, t):
-        """
-        Find neighboring samples around a given time point.
-        Args: x (torch.Tensor): Input time series data.
-              t (int): Time index.
-        Returns: torch.Tensor: Neighboring samples around the given time point.
-        """
+        
         T = self.time_series.shape[-1]
         if self.adf:
             gap = self.window_size
@@ -150,32 +145,24 @@ class TNCDataset_MP_contrastive(data.Dataset): #dataset class to model the set f
                 x_n = x[:, T - rand_t - self.window_size:T - rand_t].unsqueeze(0)
         return x_n
     
-    def _find__negative_discords(self, x, t, mp_subset):
+    def _find__negative_discords_neighborhood(self, x, t, mp_subset):
+        t_p= self._find_neighours_timestamp(x, t) #list of 20 timestamps relative to central position of the window
+        t_n = [0]*len(t_p)
+        mp_p = torch.stack([mp_subset[ t_ind] for t_ind in t_p]) # list of matrix profile value relatives to the t_p neighbors timestamp
 
-        t_p= self._find_neighours_timestamp(x, t)
-        mp_p = torch.stack([mp_subset[ t_ind-self.window_size//2:t_ind+self.window_size//2] for t_ind in t_p]) #shape (mc_sample_size, window_size)
-         
-        threshold = 10
-        mask = mp_p.mean(dim=1) > threshold
+        for i in range(len(mp_p)):
+            threshold= mp_subset[i].mean()
+            std= mp_subset[i].std()
+            if mp_p[i] > threshold+std:
+                t_n[i]=t_p[i]
+                        
+        if(t_n.count(0)==len(t_n)):
+            x_mp=torch.zeros(mp_p.shape)
+        else:
+            x_mp = torch.stack([x[t_ind:t_ind+self.window_size] for t_ind in t_n ])
+        
+        return x_mp
 
-        # Apply the mask to t_p to get the desired timestamps
-        t_p = [t_p[i] for i in range(len(t_p)) if mask[i]]
-            
-        '''
-            THIS IS THE FUNCTION TO FIND THE WINDOWS AMONG THE NEIGHBOR THAT INSTEAT SHOULD BE THE NEGATIVE SAMPLES BECAUSE OF ITS DISCORDANCE
-            Actually, it takes as parameters the subseries x, the timestamp inside it t, and the mp_subset corresponding to the subseries t.
-
-            devo capire come passarle indietro
-            e a che livello si lavora con i find neighbor, cioè devo fare un append negli x lontani?
-            devo anche rimuovelro da quelli vicini?
-
-            oppure nella loss potrei aggiungere il contributo dato da quelli vicini ma discordanti
-
-            dovrebbe contenere i vicini che però hanno un mp alto, quindi sono discordanti
-
-        '''
-
-        return mp_p
 #end of tnc dataset class
 
 def epoch_run_MP_contrastive(loader, disc_model, encoder, device, w=0, optimizer=None, train=True, alpha=1):

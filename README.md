@@ -2,12 +2,13 @@
 
 ## ToDo
 - [ ] Controlla come suddividere training di yahoo
+- [ ] Prepara preprocessing per KPI
 
 ## Experiments to do 
 - Baseline:
-    - [ ] different window size
-    - [ ] different encoding size
-    - [ ] different Mc sample size
+    - [ ] different window size ( 4 - 30 - 60 - 120 - 672 - 48)
+    - [ ] different encoding size (320 - 160 - 80 - 40)
+    - [ ] different Mc sample size (40 - 20 - 10)
     
 - Hybrid loss: 
     - [ ] Sperimenta con media tra batch
@@ -21,9 +22,6 @@
     - [ ] Mp vicini come sostituzione a dei non neighbor, non tutti
     - [ ] Rimuovere dai vicini i piu Discordanti o lasciarli
     - [ ] Negative sono sempre quelli con Mp piu alti di tutti
-   
-
-    
 
 
 ## Scripts
@@ -31,8 +29,6 @@
 - Baseline: ` python -m tnc.tnc --data yahoo --train --encoding_size 160 --mp --alpha 0.5`
 - Mp discord penalty loss: ` python -m evaluations.anomaly_detection_yahoo --data yahoo `
 - Mp contrastive loss: ` python -m tnc.tnc --data yahoo --train --encoding_size 160 --mp --mp_contrastive `
-
-
 
 ## Parameters to take into account
 

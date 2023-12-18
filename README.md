@@ -1,8 +1,28 @@
 # Overall notes
 
-- [ ] Task 1
-- [ ] Task 2
-- [ ] Task 3
+- [ ] Controlla come suddividere training di yahoo
+
+## Experiments to do 
+- Baseline:
+    - [ ] different window size
+    - [ ] different encoding size
+    - [ ] different Mc sample size
+    
+- Hybrid loss: 
+    - [ ] Sperimenta con media tra batch
+    - [ ] Sperimenta con TopK del batch con K parameter
+    - [ ] Sperimenta con penalty somma e non media
+    - [ ] Sperimenta con diversi alpha
+    - [ ] Sperimenta con diversi Matrix profile
+- Contrastive loss: 
+    - [ ] Mp vicini come altri negative
+        -[ ] sperimenta al variare del parametro di loss
+    - [ ] Mp vicini come sostituzione a dei non neighbor, non tutti
+    - [ ] Rimuovere dai vicini i piu Discordanti o lasciarli
+    - [ ] Negative sono sempre quelli con Mp piu alti di tutti
+   
+
+    
 
 
 ## Scripts

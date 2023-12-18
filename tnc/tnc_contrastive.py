@@ -161,6 +161,7 @@ class TNCDataset_MP_contrastive(data.Dataset): #dataset class to model the set f
         t_p_to_remove = []
         mp_p = torch.stack([mp_subset[ t_ind] for t_ind in t_p]) # list of matrix profile value relatives to the t_p neighbors timestamp
 
+        '''        
         #this take the window relative to timestamp over the threshold
         for i in range(len(mp_p)):
             threshold= mp_p.mean()
@@ -175,7 +176,6 @@ class TNCDataset_MP_contrastive(data.Dataset): #dataset class to model the set f
         t_n[indices[0]] = t_p[indices[0]]
         t_n[indices[1]] = t_p[indices[1]]
 
-        '''        
                         
         if(t_n.count(0)==len(t_n)):
             x_mp=torch.zeros((len(t_p),self.window_size))
@@ -237,12 +237,11 @@ def epoch_run_MP_contrastive(loader, disc_model, encoder, device, w=0, optimizer
         p_loss = loss_fn(d_p, neighbors)
         n_loss = loss_fn(d_n, non_neighbors)
         n_loss_u = loss_fn(d_n, neighbors)
-        #i want 
         mp_loss = loss_fn(d_mp, non_neighbors)
 
 
-        loss = (p_loss + w*n_loss_u + (1-w)*n_loss)/2
-        loss = (p_loss + w * n_loss_u + ((1-w)/2) * n_loss + ((1-w)/2) * mp_loss) / 3
+        #loss = (p_loss + w*n_loss_u + (1-w)*n_loss)/2
+        loss = (p_loss + w * n_loss_u +(1-w) * n_loss +  mp_loss) / 3
 
         
         if train:

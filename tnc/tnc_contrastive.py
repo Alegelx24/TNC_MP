@@ -63,14 +63,24 @@ class TNCDataset_MP_contrastive(data.Dataset): #dataset class to model the set f
         #plt.savefig('./plots/%s_seasonal.png'%ind)#save the plot of the time series
         X_close = self._find_neighours(self.time_series[ind], t) #these are the positive samples, x_p
         X_distant = self._find_non_neighours(self.time_series[ind], t) # these are the negative samples, x_n 
-        X_mp = self._find__negative_discords_neighborhood(self.time_series[ind], t, self.mp[ind])
+        X_mp, t_close_to_remove = self._find__negative_discords_neighborhood(self.time_series[ind], t, self.mp[ind])
+
+        mask = torch.ones(X_close.shape[0], dtype=torch.bool)
+        mask[t_close_to_remove] = False
+
+        # Replace the rows you want to remove with zeros
+        #X_close[mask] = 0
+
+        ''' i can replace some of the distant, concat them or use it in a different loss contribution.'''
+        #X_distant = torch.cat((X_distant, X_mp), dim=0)
+
 
         if self.state is None:
             y_t = -1
         else:
             y_t = torch.round(torch.mean(self.state[ind][t-self.window_size//2:t+self.window_size//2]))
 
-        return x_t, X_close, X_distant, y_t
+        return x_t, X_close, X_distant, y_t, X_mp
 
     def _find_neighours(self, x, t):
         """
@@ -148,20 +158,31 @@ class TNCDataset_MP_contrastive(data.Dataset): #dataset class to model the set f
     def _find__negative_discords_neighborhood(self, x, t, mp_subset):
         t_p= self._find_neighours_timestamp(x, t) #list of 20 timestamps relative to central position of the window
         t_n = [0]*len(t_p)
+        t_p_to_remove = []
         mp_p = torch.stack([mp_subset[ t_ind] for t_ind in t_p]) # list of matrix profile value relatives to the t_p neighbors timestamp
 
+        #this take the window relative to timestamp over the threshold
         for i in range(len(mp_p)):
-            threshold= mp_subset[i].mean()
-            std= mp_subset[i].std()
+            threshold= mp_p.mean()
+            std= mp_p.std()
             if mp_p[i] > threshold+std:
                 t_n[i]=t_p[i]
+                t_p_to_remove.append(i) 
+
+        #alternative way should be take the n biggest values of mp_p
+        '''
+        _, indices = torch.topk(mp_p, 2)
+        t_n[indices[0]] = t_p[indices[0]]
+        t_n[indices[1]] = t_p[indices[1]]
+
+        '''        
                         
         if(t_n.count(0)==len(t_n)):
-            x_mp=torch.zeros(mp_p.shape)
+            x_mp=torch.zeros((len(t_p),self.window_size))
         else:
-            x_mp = torch.stack([x[t_ind:t_ind+self.window_size] for t_ind in t_n ])
-        
-        return x_mp
+            #x_mp = torch.stack([x[t_ind-self.window_size//2:t_ind+self.window_size//2] for t_ind in t_n ])
+            x_mp = torch.stack([x[t_ind-self.window_size//2:t_ind+self.window_size//2] if t_ind != 0 else torch.zeros(self.window_size) for t_ind in t_n])
+        return x_mp,t_p_to_remove
 
 #end of tnc dataset class
 
@@ -184,7 +205,7 @@ def epoch_run_MP_contrastive(loader, disc_model, encoder, device, w=0, optimizer
     epoch_acc = 0
     batch_count = 0
 
-    for x_t, x_p, x_n, _ in loader: #iterate over batches
+    for x_t, x_p, x_n, _, x_mp in loader: #iterate over batches
         #mc_sample = x_p.shape[0]
         mc_sample = x_p.shape[1]
         
@@ -195,23 +216,33 @@ def epoch_run_MP_contrastive(loader, disc_model, encoder, device, w=0, optimizer
 
         x_p = x_p.reshape((-1, f_size, len_size))
         x_n = x_n.reshape((-1, f_size, len_size))
+        x_mp = x_mp.reshape((-1, f_size, len_size))
         x_t = np.repeat(x_t, mc_sample, axis=0)#create multiple samples for each time point for monte carlo sampling
         neighbors = torch.ones((len(x_p))).to(device)
         non_neighbors = torch.zeros((len(x_n))).to(device)
-        x_t, x_p, x_n = x_t.to(device), x_p.to(device), x_n.to(device)
+        mp_negatives = torch.zeros((len(x_mp))).to(device)
+        x_t, x_p, x_n, x_mp = x_t.to(device), x_p.to(device), x_n.to(device), x_mp.to(device)
         #x_t shape [200, 1, 30]
 
         z_t = encoder(x_t)
         z_p = encoder(x_p)
         z_n = encoder(x_n)
+        #added x_mp encoding
+        z_mp = encoder(x_mp)
 
         d_p = disc_model(z_t, z_p) #output of the discriminator, if close to 1, then the two inputs are close
         d_n = disc_model(z_t, z_n)
+        d_mp = disc_model(z_t, z_mp)
 
         p_loss = loss_fn(d_p, neighbors)
         n_loss = loss_fn(d_n, non_neighbors)
         n_loss_u = loss_fn(d_n, neighbors)
+        #i want 
+        mp_loss = loss_fn(d_mp, non_neighbors)
+
+
         loss = (p_loss + w*n_loss_u + (1-w)*n_loss)/2
+        loss = (p_loss + w * n_loss_u + ((1-w)/2) * n_loss + ((1-w)/2) * mp_loss) / 3
 
         
         if train:

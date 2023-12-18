@@ -1,10 +1,11 @@
 # Overall notes
 
+## ToDo
 - [ ] Controlla come suddividere training di yahoo
 
 ## Experiments to do 
 - Baseline:
-    - [ ] different window size
+    - [x] different window size
     - [ ] different encoding size
     - [ ] different Mc sample size
     

@@ -255,7 +255,7 @@ def epoch_run(loader, disc_model, encoder, device, w=0, optimizer=None, train=Tr
 #training loop function
 def learn_encoder(x, encoder, window_size, w, lr=0.001, decay=0.005, mc_sample_size=20,
                   n_epochs=100, path='simulation', device='cpu', augmentation=1, n_cross_val=1,
-                  cont=False, encoding_size=180, mp=None, alpha=1,mp_contrastive=False):
+                  cont=False, encoding_size=180, mp=None, alpha=1, mp_contrastive=False, model_name='tnc'):
     accuracies, losses = [], []
     for cv in range(n_cross_val): #cross validation loop over n cv folds
         if 'waveform' in path:
@@ -341,7 +341,7 @@ def learn_encoder(x, encoder, window_size, w, lr=0.001, decay=0.005, mc_sample_s
                     'discriminator_state_dict': disc_model.state_dict(),
                     'best_accuracy': test_acc
                 }
-                torch.save(state, './ckpt/%s/checkpoint_%d.pth.tar'%(path,cv))
+                torch.save(state, './ckpt/%s/checkpoint_%s.pth.tar'%(path,model_name))
 
         accuracies.append(best_acc)
         losses.append(best_loss)
@@ -372,7 +372,7 @@ def learn_encoder(x, encoder, window_size, w, lr=0.001, decay=0.005, mc_sample_s
     return encoder
 
 # Main function
-def main(is_train, data_type, cv, w, cont, epochs, encoding_size, matrix_profile=None, alpha=1, mp_contrastive=False):
+def main(is_train, data_type, cv, w, cont, epochs, encoding_size, matrix_profile=None, alpha=1, mp_contrastive=False, model_name='tnc'):
     if not os.path.exists("./plots"):
         os.mkdir("./plots")
     if not os.path.exists("./ckpt/"):
@@ -481,7 +481,7 @@ def main(is_train, data_type, cv, w, cont, epochs, encoding_size, matrix_profile
     # Yahoo data
     if data_type == 'yahoo':
         #set window size 
-        window_size = 30
+        window_size = 4
         path = './data/yahoo_data/'
         #initialization of encoder
         encoder = RnnEncoder(hidden_size=100, in_channel=1, encoding_size=encoding_size, device=device)
@@ -496,7 +496,7 @@ def main(is_train, data_type, cv, w, cont, epochs, encoding_size, matrix_profile
 
             learn_encoder(torch.Tensor(x), encoder, w=w, lr=1e-3, decay=1e-5, n_epochs=epochs, window_size=window_size,
                         path='yahoo', mc_sample_size=20, device=device, augmentation=5, n_cross_val=cv, encoding_size=encoding_size,
-                        mp=torch.Tensor(mp), alpha=alpha, mp_contrastive=mp_contrastive)
+                        mp=torch.Tensor(mp), alpha=alpha, mp_contrastive=mp_contrastive, model_name=model_name)
             
         else: #test the encoder on the test set
             with open(os.path.join(path, 'yahoo_x_test.pkl'), 'rb') as f:
@@ -508,8 +508,8 @@ def main(is_train, data_type, cv, w, cont, epochs, encoding_size, matrix_profile
             encoder = encoder.to(device)
             #track_encoding(x_test[0,:,:], y_test[0,:], encoder, window_size, 'har') #used to plot the encoding
             for cv_ind in range(cv):
-                #plot_distribution(x_test, y_test, encoder, window_size=window_size, path='yahoo', device=device,
-                #                augment=100, cv=cv_ind, title='TNC')
+                plot_distribution(x_test, y_test, encoder, window_size=window_size, path='yahoo', device=device,
+                                augment=100, cv=cv_ind, title='TNC')
                 
                 #set up the classification experiment
                 exp = ClassificationPerformanceExperiment(n_states=2, encoding_size=10, path='yahoo', hidden_size=100,
@@ -535,8 +535,9 @@ if __name__ == '__main__':
     parser.add_argument('--mp',  action='store_true')
     parser.add_argument('--alpha', type=float, default=1)
     parser.add_argument('--mp_contrastive', action='store_true')
+    parser.add_argument('--model_name', type=str, default='tnc')
     args = parser.parse_args()
     print('TNC model with w=%f'%args.w)
-    main(args.train, args.data, args.cv, args.w, args.cont, args.epochs, args.encoding_size, args.mp, args.alpha, args.mp_contrastive)
+    main(args.train, args.data, args.cv, args.w, args.cont, args.epochs, args.encoding_size, args.mp, args.alpha, args.mp_contrastive, args.model_name)
 
 

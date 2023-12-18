@@ -5,7 +5,7 @@
 
 ## Experiments to do 
 - Baseline:
-    - [x] different window size
+    - [ ] different window size
     - [ ] different encoding size
     - [ ] different Mc sample size
     

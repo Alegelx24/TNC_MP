@@ -6,12 +6,12 @@
 
 ## Experiments to do 
 - Baseline:
-    - [ ] different window size ( 4 - 30 - 60 - 120 - 672 - 48)
-    - [ ] different encoding size (320 - 160 - 80 - 40)
-    - [ ] different Mc sample size (40 - 20 - 10)
+    - [X] different window size ( 4 - 30 - 60 - 120 - 672 - 48)
+    - [X] different encoding size (320 - 160 - 80 - 40)
+    - [X] different Mc sample size (40 - 20 - 10)
     
 - Hybrid loss: 
-    - [ ] Sperimenta con media tra batch
+    - [X] Sperimenta con media della window
     - [ ] Sperimenta con TopK del batch con K parameter
     - [ ] Sperimenta con penalty somma e non media
     - [ ] Sperimenta con diversi alpha

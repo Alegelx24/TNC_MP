@@ -195,15 +195,14 @@ def epoch_run(loader, disc_model, encoder, device, w=0, optimizer=None, train=Tr
         #mean also over the batches
         flattened_matrix_profile = torch.flatten(matrix_profile_window)
         mp_loss_over_window_mean_batches = flattened_matrix_profile.float().mean() #should be of shape([1])
-        #mp_loss_over_window_batches = matrix_profile_window.float().mean() #should be of shape([1])
 
         '''
         OTHER SOLUTIONS FOR MP LOSS
-        '''
         threshold = mp_loss_window_mean
         mp_loss_exp = torch.exp(matrix_profile_value - threshold) - 1
 
         anomaly_loss = torch.mean((torch.nn.functional.relu(matrix_profile_value - threshold)), dim=0) # Only penalizes values above the threshold
+        '''
 
         batch_size, len_size = x_t.shape
 

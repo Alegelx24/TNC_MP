@@ -13,10 +13,10 @@
 - Hybrid loss: 
     - [X] Sperimenta con media della window
     - [X] Sperimenta con penalty somma e non media
-    - [ ] Sperimenta con media di quelli sopra alla threshold
+    - [X] Sperimenta con TopK con K parameter somma (K= 1, window/2)
     - [ ] Sperimenta con somma di solo quelli sopra alla threshold
-    - [ ] Sperimenta con TopK con K parameter media (K= 1, window/2)
-    - [ ] Sperimenta con TopK con K parameter media (K= 1, window/2)
+    - [ ] Sperimenta con media di quelli sopra alla threshold
+    - [ ] Sperimente considerando anche discriminator per MP
     - [ ] Sperimenta con diversi Matrix profile
 - Contrastive loss: 
     - [ ] Mp vicini come altri negative
@@ -38,9 +38,9 @@ Encoder
 - encoding size
 - hidden size
 - alpha (loss parameter)
-- sliding window
+- sliding window size
 - mc_sample_size: number of neighbor window to extract
-- weight w inside of the positive unlabeling
+- weight w inside of the positive unlabeling (better keep default)
 
 Evaluation
 - sliding padding

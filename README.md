@@ -12,9 +12,11 @@
     
 - Hybrid loss: 
     - [X] Sperimenta con media della window
-    - [ ] Sperimenta con TopK del batch con K parameter
-    - [ ] Sperimenta con penalty somma e non media
-    - [ ] Sperimenta con diversi alpha
+    - [X] Sperimenta con penalty somma e non media
+    - [ ] Sperimenta con media di quelli sopra alla threshold
+    - [ ] Sperimenta con somma di solo quelli sopra alla threshold
+    - [ ] Sperimenta con TopK con K parameter media (K= 1, window/2)
+    - [ ] Sperimenta con TopK con K parameter media (K= 1, window/2)
     - [ ] Sperimenta con diversi Matrix profile
 - Contrastive loss: 
     - [ ] Mp vicini come altri negative
@@ -26,7 +28,7 @@
 
 ## Scripts
  
-- Baseline: ` python -m tnc.tnc --data yahoo --train --encoding_size 160 --mp --alpha 0.5`
+- Baseline: ` python -m tnc.tnc --data yahoo --train --encoding_size 40 --mp --alpha 0.9 --model_name n25 `
 - Mp discord penalty loss: ` python -m evaluations.anomaly_detection_yahoo --data yahoo `
 - Mp contrastive loss: ` python -m tnc.tnc --data yahoo --train --encoding_size 160 --mp --mp_contrastive `
 

@@ -291,3 +291,151 @@ Loss: 0.4375 +- 0.0000
 =======> Performance Summary:
 Accuracy: 71.71 +- 0.00
 Loss: 0.4225 +- 0.0000
+
+# MP hybrid penalty(SUM LOSS) RESULTS (with ENCODING 40 | Mc 20 | window 4 | n9) and ( DAMP 672-4032 )
+
+## Alpha parameter (0.1 - 0.3 - 0.5 - 0.7 - 0.9)
+
+#### ALPHA 0.1 | n21
+TNC model with w=0.050000
+(cv:0)Epoch 0 Loss =====> Training Loss: 516.19465       Training Accuracy: 0.61637      Test Loss: 0.06142      Test Accuracy: 0.62947
+(cv:0)Epoch 10 Loss =====> Training Loss: 515.30058      Training Accuracy: 0.67747      Test Loss: 0.06049      Test Accuracy: 0.63276
+(cv:0)Epoch 20 Loss =====> Training Loss: 525.82616      Training Accuracy: 0.67490      Test Loss: 0.05615      Test Accuracy: 0.69276
+(cv:0)Epoch 30 Loss =====> Training Loss: 520.15172      Training Accuracy: 0.69771      Test Loss: 0.05787      Test Accuracy: 0.65500
+(cv:0)Epoch 40 Loss =====> Training Loss: 506.65602      Training Accuracy: 0.73740      Test Loss: 0.05582      Test Accuracy: 0.69434
+(cv:0)Epoch 50 Loss =====> Training Loss: 520.94191      Training Accuracy: 0.72798      Test Loss: 0.05481      Test Accuracy: 0.71092
+(cv:0)Epoch 60 Loss =====> Training Loss: 529.18974      Training Accuracy: 0.73428      Test Loss: 0.05335      Test Accuracy: 0.71671
+(cv:0)Epoch 70 Loss =====> Training Loss: 512.02558      Training Accuracy: 0.68144      Test Loss: 0.05919      Test Accuracy: 0.65803
+(cv:0)Epoch 80 Loss =====> Training Loss: 522.18933      Training Accuracy: 0.68490      Test Loss: 0.05864      Test Accuracy: 0.65737
+(cv:0)Epoch 90 Loss =====> Training Loss: 529.19582      Training Accuracy: 0.72048      Test Loss: 0.05713      Test Accuracy: 0.68553
+(cv:0)Epoch 100 Loss =====> Training Loss: 525.20833     Training Accuracy: 0.74349      Test Loss: 0.05416      Test Accuracy: 0.70079
+=======> Performance Summary:
+Accuracy: 72.67 +- 0.00
+Loss: 0.0527 +- 0.0000
+
+#### ALPHA 0.3 | n22
+
+TNC model with w=0.050000
+(cv:0)Epoch 0 Loss =====> Training Loss: 406.72086       Training Accuracy: 0.62288      Test Loss: 0.18360         Test Accuracy: 0.62250
+(cv:0)Epoch 10 Loss =====> Training Loss: 407.44257      Training Accuracy: 0.66812      Test Loss: 0.17589         Test Accuracy: 0.65000
+(cv:0)Epoch 20 Loss =====> Training Loss: 409.97158      Training Accuracy: 0.67866      Test Loss: 0.17890         Test Accuracy: 0.63658
+(cv:0)Epoch 30 Loss =====> Training Loss: 397.64322      Training Accuracy: 0.72599      Test Loss: 0.16918         Test Accuracy: 0.68118
+(cv:0)Epoch 40 Loss =====> Training Loss: 393.81223      Training Accuracy: 0.71493      Test Loss: 0.17002         Test Accuracy: 0.67408
+(cv:0)Epoch 50 Loss =====> Training Loss: 410.64038      Training Accuracy: 0.71401      Test Loss: 0.18786         Test Accuracy: 0.62237
+(cv:0)Epoch 60 Loss =====> Training Loss: 396.94565      Training Accuracy: 0.70366      Test Loss: 0.16666         Test Accuracy: 0.68645
+(cv:0)Epoch 70 Loss =====> Training Loss: 416.76711      Training Accuracy: 0.72247      Test Loss: 0.17009         Test Accuracy: 0.68882
+(cv:0)Epoch 80 Loss =====> Training Loss: 417.92368      Training Accuracy: 0.70651      Test Loss: 0.17064         Test Accuracy: 0.67684
+(cv:0)Epoch 90 Loss =====> Training Loss: 396.26803      Training Accuracy: 0.73966      Test Loss: 0.16155         Test Accuracy: 0.72132
+(cv:0)Epoch 100 Loss =====> Training Loss: 397.63111     Training Accuracy: 0.75918      Test Loss: 0.16558         Test Accuracy: 0.70487
+=======> Performance Summary:
+Accuracy: 73.54 +- 0.00
+Loss: 0.1578 +- 0.0000
+
+
+#### ALPHA 0.5 | n23
+
+(cv:0)Epoch 10 Loss =====> Training Loss: 287.26481      Training Accuracy: 0.69490      Test Loss: 0.28599         Test Accuracy: 0.69566
+(cv:0)Epoch 20 Loss =====> Training Loss: 293.28471      Training Accuracy: 0.70750      Test Loss: 0.28728         Test Accuracy: 0.66000
+(cv:0)Epoch 30 Loss =====> Training Loss: 286.09822      Training Accuracy: 0.69582      Test Loss: 0.29653         Test Accuracy: 0.65395
+(cv:0)Epoch 40 Loss =====> Training Loss: 292.00507      Training Accuracy: 0.74185      Test Loss: 0.27369         Test Accuracy: 0.70250
+(cv:0)Epoch 50 Loss =====> Training Loss: 292.92710      Training Accuracy: 0.68911      Test Loss: 0.30298         Test Accuracy: 0.62750
+(cv:0)Epoch 60 Loss =====> Training Loss: 282.78262      Training Accuracy: 0.72260      Test Loss: 0.28409         Test Accuracy: 0.68829
+(cv:0)Epoch 70 Loss =====> Training Loss: 289.41682      Training Accuracy: 0.71610      Test Loss: 0.29467         Test Accuracy: 0.65237
+(cv:0)Epoch 80 Loss =====> Training Loss: 284.20601      Training Accuracy: 0.73606      Test Loss: 0.28108      Test Accuracy: 0.70250
+(cv:0)Epoch 90 Loss =====> Training Loss: 293.97391      Training Accuracy: 0.73870      Test Loss: 0.29261      Test Accuracy: 0.66250
+(cv:0)Epoch 100 Loss =====> Training Loss: 282.62243     Training Accuracy: 0.72188      Test Loss: 0.29196      Test Accuracy: 0.68263
+=======> Performance Summary:
+Accuracy: 75.70 +- 0.00
+Loss: 0.2584 +- 0.0000
+
+#### ALPHA 0.7 | n24
+
+(cv:0)Epoch 0 Loss =====> Training Loss: 175.50206       Training Accuracy: 0.61880      Test Loss: 0.43123      Test Accuracy: 0.62947
+(cv:0)Epoch 10 Loss =====> Training Loss: 175.33772      Training Accuracy: 0.69363      Test Loss: 0.39792      Test Accuracy: 0.70079
+(cv:0)Epoch 20 Loss =====> Training Loss: 174.99216      Training Accuracy: 0.67038      Test Loss: 0.41210      Test Accuracy: 0.64816
+(cv:0)Epoch 30 Loss =====> Training Loss: 173.94876      Training Accuracy: 0.71151      Test Loss: 0.40597      Test Accuracy: 0.68618
+(cv:0)Epoch 40 Loss =====> Training Loss: 179.62591      Training Accuracy: 0.72253      Test Loss: 0.39832      Test Accuracy: 0.67816
+(cv:0)Epoch 50 Loss =====> Training Loss: 175.49216      Training Accuracy: 0.70654      Test Loss: 0.38450      Test Accuracy: 0.70487
+(cv:0)Epoch 60 Loss =====> Training Loss: 174.25134      Training Accuracy: 0.73336      Test Loss: 0.37144      Test Accuracy: 0.72868
+(cv:0)Epoch 70 Loss =====> Training Loss: 176.32046      Training Accuracy: 0.72514      Test Loss: 0.38207      Test Accuracy: 0.70882
+(cv:0)Epoch 80 Loss =====> Training Loss: 170.01696      Training Accuracy: 0.71233      Test Loss: 0.40186      Test Accuracy: 0.68697
+(cv:0)Epoch 90 Loss =====> Training Loss: 173.53512      Training Accuracy: 0.70072      Test Loss: 0.40498      Test Accuracy: 0.68092
+(cv:0)Epoch 100 Loss =====> Training Loss: 173.24736     Training Accuracy: 0.71387      Test Loss: 0.40209      Test Accuracy: 0.66592
+=======> Performance Summary:
+Accuracy: 74.42 +- 0.00
+Loss: 0.3622 +- 0.0000
+
+#### ALPHA 0.9 | n25
+
+(cv:0)Epoch 0 Loss =====> Training Loss: 56.40169        Training Accuracy: 0.62562      Test Loss: 0.55180      Test Accuracy: 0.62987
+(cv:0)Epoch 10 Loss =====> Training Loss: 58.55055       Training Accuracy: 0.69223      Test Loss: 0.54074      Test Accuracy: 0.64605
+(cv:0)Epoch 20 Loss =====> Training Loss: 56.22659       Training Accuracy: 0.72243      Test Loss: 0.51291      Test Accuracy: 0.68105
+(cv:0)Epoch 30 Loss =====> Training Loss: 56.91287       Training Accuracy: 0.72510      Test Loss: 0.47767      Test Accuracy: 0.71539
+(cv:0)Epoch 40 Loss =====> Training Loss: 59.31724       Training Accuracy: 0.67863      Test Loss: 0.52346      Test Accuracy: 0.65316
+(cv:0)Epoch 50 Loss =====> Training Loss: 61.80142       Training Accuracy: 0.69877      Test Loss: 0.49419      Test Accuracy: 0.69500
+(cv:0)Epoch 60 Loss =====> Training Loss: 59.35730       Training Accuracy: 0.72356      Test Loss: 0.49371      Test Accuracy: 0.70066
+(cv:0)Epoch 70 Loss =====> Training Loss: 59.92748       Training Accuracy: 0.72514      Test Loss: 0.50531      Test Accuracy: 0.68961
+(cv:0)Epoch 80 Loss =====> Training Loss: 56.89746       Training Accuracy: 0.74825      Test Loss: 0.47615      Test Accuracy: 0.72000
+(cv:0)Epoch 90 Loss =====> Training Loss: 57.61508       Training Accuracy: 0.73705      Test Loss: 0.47809      Test Accuracy: 0.73211
+(cv:0)Epoch 100 Loss =====> Training Loss: 57.63783      Training Accuracy: 0.74925      Test Loss: 0.48009      Test Accuracy: 0.72908
+=======> Performance Summary:
+Accuracy: 71.93 +- 0.00
+Loss: 0.4712 +- 0.0000
+
+#### ALPHA 0.6 | n26
+
+TNC model with w=0.050000
+(cv:0)Epoch 0 Loss =====> Training Loss: 228.53277       Training Accuracy: 0.62295      Test Loss: 0.37707      Test Accuracy: 0.61487
+(cv:0)Epoch 10 Loss =====> Training Loss: 231.13045      Training Accuracy: 0.69592      Test Loss: 0.34998      Test Accuracy: 0.68539
+(cv:0)Epoch 20 Loss =====> Training Loss: 217.85522      Training Accuracy: 0.72168      Test Loss: 0.35625      Test Accuracy: 0.64263
+(cv:0)Epoch 30 Loss =====> Training Loss: 233.00331      Training Accuracy: 0.68116      Test Loss: 0.33739      Test Accuracy: 0.70145
+(cv:0)Epoch 40 Loss =====> Training Loss: 235.33859      Training Accuracy: 0.69048      Test Loss: 0.34789      Test Accuracy: 0.67421
+(cv:0)Epoch 50 Loss =====> Training Loss: 230.36400      Training Accuracy: 0.72171      Test Loss: 0.33524      Test Accuracy: 0.68961
+(cv:0)Epoch 60 Loss =====> Training Loss: 238.52905      Training Accuracy: 0.71801      Test Loss: 0.34131      Test Accuracy: 0.66882
+(cv:0)Epoch 70 Loss =====> Training Loss: 228.53972      Training Accuracy: 0.73195      Test Loss: 0.32876      Test Accuracy: 0.70921
+(cv:0)Epoch 80 Loss =====> Training Loss: 227.36877      Training Accuracy: 0.75110      Test Loss: 0.33165      Test Accuracy: 0.70013
+(cv:0)Epoch 90 Loss =====> Training Loss: 230.21952      Training Accuracy: 0.71884      Test Loss: 0.34267      Test Accuracy: 0.67934
+(cv:0)Epoch 100 Loss =====> Training Loss: 221.32898     Training Accuracy: 0.68517      Test Loss: 0.35794      Test Accuracy: 0.64539
+=======> Performance Summary:
+Accuracy: 72.78 +- 0.00
+Loss: 0.3160 +- 0.0000
+
+#### ALPHA 0.4 | n27
+=======> Performance Summary:
+Accuracy: 72.61 +- 0.00
+Loss: 0.2097 +- 0.0000
+
+# MP hybrid penalty(Sum only top k discord) RESULTS (with ENCODING 40 | Mc 20 | window 4 | n9) and ( DAMP 672-4032 )
+
+## Alpha parameter (0.1 - 0.3 - 0.5 - 0.7 - 0.9), K=1
+
+#### ALPHA 0.1 | n28
+
+PS C:\Users\aleg2\Desktop\TNC_MP> python -m tnc.tnc --data yahoo --train --encoding_size 40 --mp --alpha 0.1 --model_name n28   
+TNC model with w=0.050000
+(cv:0)Epoch 0 Loss =====> Training Loss: 127.65128       Training Accuracy: 0.62445      Test Loss: 0.06162      Test Accuracy: 0.62500
+(cv:0)Epoch 10 Loss =====> Training Loss: 128.84534      Training Accuracy: 0.66411      Test Loss: 0.05807      Test Accuracy: 0.65684
+(cv:0)Epoch 20 Loss =====> Training Loss: 127.88131      Training Accuracy: 0.66836      Test Loss: 0.05664      Test Accuracy: 0.67474
+(cv:0)Epoch 30 Loss =====> Training Loss: 130.68627      Training Accuracy: 0.67144      Test Loss: 0.05987      Test Accuracy: 0.63895
+(cv:0)Epoch 40 Loss =====> Training Loss: 127.10447      Training Accuracy: 0.70387      Test Loss: 0.05735      Test Accuracy: 0.68632
+(cv:0)Epoch 50 Loss =====> Training Loss: 131.79771      Training Accuracy: 0.68627      Test Loss: 0.05829      Test Accuracy: 0.66789
+(cv:0)Epoch 60 Loss =====> Training Loss: 133.96565      Training Accuracy: 0.69699      Test Loss: 0.05604      Test Accuracy: 0.70382
+(cv:0)Epoch 70 Loss =====> Training Loss: 130.00769      Training Accuracy: 0.71432      Test Loss: 0.05710      Test Accuracy: 0.68855
+(cv:0)Epoch 80 Loss =====> Training Loss: 122.84595      Training Accuracy: 0.74000      Test Loss: 0.05522      Test Accuracy: 0.69947
+(cv:0)Epoch 90 Loss =====> Training Loss: 127.57787      Training Accuracy: 0.70223      Test Loss: 0.05769      Test Accuracy: 0.66329
+(cv:0)Epoch 100 Loss =====> Training Loss: 126.48419     Training Accuracy: 0.71603      Test Loss: 0.05669      Test Accuracy: 0.67632
+=======> Performance Summary:
+Accuracy: 72.17 +- 0.00
+Loss: 0.0534 +- 0.0000
+
+#### ALPHA 0.3 | n29
+
+#### ALPHA 0.5 | n30
+
+#### ALPHA 0.7 | n31
+
+#### ALPHA 0.9 | n32
+
+
+
+#### ALPHA 0.1 | n33

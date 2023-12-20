@@ -191,6 +191,10 @@ def epoch_run(loader, disc_model, encoder, device, w=0, optimizer=None, train=Tr
         
         #mp loss over window mean
         mp_loss_window_mean = matrix_profile_window_mean.float() #should be of shape([10])      
+        
+        #topK contribute
+        k=1
+        mp_loss_topK = torch.topk(matrix_profile_window, k, dim=1, largest=True, sorted=True, out=None)[0] #should be of shape([10,1])
 
         #mean also over the batches
         flattened_matrix_profile = torch.flatten(matrix_profile_window)
@@ -217,6 +221,7 @@ def epoch_run(loader, disc_model, encoder, device, w=0, optimizer=None, train=Tr
         x_t, x_p, x_n = x_t.to(device), x_p.to(device), x_n.to(device)
         #x_t shape [200, 1, 30]
 
+
         z_t = encoder(x_t)
         z_p = encoder(x_p)
         z_n = encoder(x_n)
@@ -229,8 +234,16 @@ def epoch_run(loader, disc_model, encoder, device, w=0, optimizer=None, train=Tr
         n_loss_u = loss_fn(d_n, neighbors)
         loss = (p_loss + w*n_loss_u + (1-w)*n_loss)/2
 
+        #window mean loss
+        #mp_loss = mp_loss_window_mean.mean()
+        
+        # window sum loss
+        #mp_loss = mp_loss_sum
 
-        mp_loss = mp_loss_window_mean.mean()
+        #topK loss mean
+        mp_loss = mp_loss_topK.sum()
+
+        # sum of discord over the threshold mean
 
         #hybrid loss
         loss = (alpha)* loss + (1-alpha)*(mp_loss)

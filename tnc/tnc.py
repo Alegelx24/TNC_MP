@@ -95,6 +95,15 @@ class TNCDataset(data.Dataset): #dataset class to model the set for TNC
         else:
             y_t = torch.round(torch.mean(self.state[ind][t-self.window_size//2:t+self.window_size//2]))
 
+
+        if self.mp is not None:
+            Mp_close = self._find_mp_neighours(self.mp[ind], t) 
+            Mp_distant = self._find_mp_non_neighours(self.mp[ind], t) 
+        else:
+            Mp_close= torch.zeros(X_close.shape)
+            Mp_distant = torch.zeros(X_distant.shape)
+        
+ 
         #matrix profile
         if self.mp is not None:
             matrix_profile_window = self.mp[ind][t-self.window_size//2:t+self.window_size//2] #window mp values
@@ -108,7 +117,7 @@ class TNCDataset(data.Dataset): #dataset class to model the set for TNC
 
 
 
-        return x_t, X_close, X_distant, y_t, matrix_profile_window, matrix_profile_window_mean, matrix_profile_value
+        return x_t, X_close, X_distant, y_t, matrix_profile_window, matrix_profile_window_mean, matrix_profile_value, Mp_close, Mp_distant
 
     def _find_neighours(self, x, t):
         """
@@ -156,8 +165,49 @@ class TNCDataset(data.Dataset): #dataset class to model the set for TNC
             else:
                 x_n = x[:, T - rand_t - self.window_size:T - rand_t].unsqueeze(0)
         return x_n
-#end of tnc dataset class
     
+    def _find_mp_neighours(self, mp, t):
+        T = self.time_series.shape[-1]
+        if self.adf:
+            gap = self.window_size
+            corr = []
+            for w_t in range(self.window_size, 4*self.window_size, gap):
+                try:
+                    p_val = 0
+                    for f in range(mp.shape[-2]):
+                        p = adfuller(np.array(mp[f, max(0, t - w_t):min(mp.shape[-1], t + w_t)].reshape(-1, )))[1]
+                        p_val += 0.01 if math.isnan(p) else p
+                    corr.append(p_val/mp.shape[-2])
+                except:
+                    corr.append(0.6)
+            self.epsilon = len(corr) if len(np.where(np.array(corr) >= 0.01)[0]) == 0 else (np.where(np.array(corr) >= 0.01)[0][0] + 1)
+            self.delta = 5*self.epsilon*self.window_size
+        ## Random from a Gaussian
+        t_p = [int(t+np.random.randn()*self.epsilon*self.window_size) for _ in range(self.mc_sample_size)]
+        t_p = [max(self.window_size//2+1, min(t_pp, T-self.window_size//2)) for t_pp in t_p]
+        #x_p = torch.stack([x[:, t_ind-self.window_size//2:t_ind+self.window_size//2] for t_ind in t_p])
+        mp_p = torch.stack([mp[ t_ind-self.window_size//2:t_ind+self.window_size//2] for t_ind in t_p])
+
+        return mp_p
+    
+    def _find_mp_non_neighours(self, mp, t): 
+        T = self.time_series.shape[-1]
+        if t>T/2:
+            t_n = np.random.randint(self.window_size//2, max((t - self.delta + 1), self.window_size//2+1), self.mc_sample_size)
+        else:
+            t_n = np.random.randint(min((t + self.delta), (T - self.window_size-1)), (T - self.window_size//2), self.mc_sample_size)
+        #x_n = torch.stack([x[:, t_ind-self.window_size//2:t_ind+self.window_size//2] for t_ind in t_n])
+        mp_n = torch.stack([mp[ t_ind-self.window_size//2:t_ind+self.window_size//2] for t_ind in t_n])
+
+        if len(mp_n)==0:
+            rand_t = np.random.randint(0,self.window_size//5)
+            if t > T / 2:
+                mp_n = mp[:,rand_t:rand_t+self.window_size].unsqueeze(0)
+            else:
+                mp_n = mp[:, T - rand_t - self.window_size:T - rand_t].unsqueeze(0)
+        return mp_n
+    
+#end of tnc dataset class
 
 
 def epoch_run(loader, disc_model, encoder, device, w=0, optimizer=None, train=True, alpha=1):
@@ -172,6 +222,7 @@ def epoch_run(loader, disc_model, encoder, device, w=0, optimizer=None, train=Tr
     
     #mp loss definition
     mp_loss = 0
+    mp_on_encoding=True
 
     encoder.to(device)
     disc_model.to(device)
@@ -179,7 +230,7 @@ def epoch_run(loader, disc_model, encoder, device, w=0, optimizer=None, train=Tr
     epoch_acc = 0
     batch_count = 0
 
-    for x_t, x_p, x_n, _, matrix_profile_window, matrix_profile_window_mean, matrix_profile_value in loader: #iterate over batches
+    for x_t, x_p, x_n, _, matrix_profile_window, matrix_profile_window_mean, _ , Mp_close, Mp_distant in loader: #iterate over batches
         #mc_sample = x_p.shape[0]
         mc_sample = x_p.shape[1]
         
@@ -220,33 +271,59 @@ def epoch_run(loader, disc_model, encoder, device, w=0, optimizer=None, train=Tr
         non_neighbors = torch.zeros((len(x_n))).to(device)
         x_t, x_p, x_n = x_t.to(device), x_p.to(device), x_n.to(device)
         #x_t shape [200, 1, 30]
+ 
+        ''' 
+        MP with encoding inside the loss or not
+        '''
+        if mp_on_encoding == True:
+                
+            #matrix profile encoding loss inside the discriminator
+            Mp_close = Mp_close.reshape((-1, f_size, len_size))
+            Mp_distant = Mp_distant.reshape((-1, f_size, len_size))
+            Mp_close, Mp_distant = Mp_close.to(device), Mp_distant.to(device)
+            z_mp_close = encoder(Mp_close)
+            z_mp_distant = encoder(Mp_distant)
+            d_mp= disc_model(z_mp_close, z_mp_distant)
+            mp_loss_encoding = loss_fn(d_mp, non_neighbors)
 
+            z_t = encoder(x_t)
+            z_p = encoder(x_p)
+            z_n = encoder(x_n)
 
-        z_t = encoder(x_t)
-        z_p = encoder(x_p)
-        z_n = encoder(x_n)
+            d_p = disc_model(z_t, z_p) #output of the discriminator, if close to 1, then the two inputs are close
+            d_n = disc_model(z_t, z_n)
 
-        d_p = disc_model(z_t, z_p) #output of the discriminator, if close to 1, then the two inputs are close
-        d_n = disc_model(z_t, z_n)
+            p_loss = loss_fn(d_p, neighbors)
+            n_loss = loss_fn(d_n, non_neighbors)
+            n_loss_u = loss_fn(d_n, neighbors)
+            loss = (p_loss + w*n_loss_u + (1-w)*n_loss + mp_loss_encoding)/3
 
-        p_loss = loss_fn(d_p, neighbors)
-        n_loss = loss_fn(d_n, non_neighbors)
-        n_loss_u = loss_fn(d_n, neighbors)
-        loss = (p_loss + w*n_loss_u + (1-w)*n_loss)/2
+        else:
+            z_t = encoder(x_t)
+            z_p = encoder(x_p)
+            z_n = encoder(x_n)
 
-        #window mean loss
-        #mp_loss = mp_loss_window_mean.mean()
-        
-        # window sum loss
-        #mp_loss = mp_loss_sum
+            d_p = disc_model(z_t, z_p) #output of the discriminator, if close to 1, then the two inputs are close
+            d_n = disc_model(z_t, z_n)
 
-        #topK loss mean
-        mp_loss = mp_loss_topK.sum()
+            p_loss = loss_fn(d_p, neighbors)
+            n_loss = loss_fn(d_n, non_neighbors)
+            n_loss_u = loss_fn(d_n, neighbors)
+            loss = (p_loss + w*n_loss_u + (1-w)*n_loss)/2
 
-        # sum of discord over the threshold mean
+            #window mean loss
+            #mp_loss = mp_loss_window_mean.mean()
+            
+            # window sum loss
+            #mp_loss = mp_loss_sum
 
-        #hybrid loss
-        loss = (alpha)* loss + (1-alpha)*(mp_loss)
+            #topK loss mean
+            mp_loss = mp_loss_topK.sum()
+
+            # sum of discord over the threshold mean
+
+            #hybrid loss
+            loss = (alpha)* loss + (1-alpha)*(mp_loss)
 
         if train:
             optimizer.zero_grad()

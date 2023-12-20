@@ -498,3 +498,23 @@ TNC model with w=0.050000
 Accuracy: 72.39 +- 0.00
 Loss: 0.4742 +- 0.0000
 
+
+# MP hybrid penalty with MP encoding discrimination (ENCODING 40 | Mc 20 | window 4) and ( DAMP 672-4032 )
+
+#### ALPHA 0.9 | n33
+
+TNC model with w=0.050000
+(cv:0)Epoch 0 Loss =====> Training Loss: 0.51248         Training Accuracy: 0.58284      Test Loss: 0.77526      Test Accuracy: 0.61013
+(cv:0)Epoch 10 Loss =====> Training Loss: 0.44344        Training Accuracy: 0.65870      Test Loss: 0.93867      Test Accuracy: 0.63447
+(cv:0)Epoch 20 Loss =====> Training Loss: 0.41993        Training Accuracy: 0.65979      Test Loss: 0.89939      Test Accuracy: 0.63000
+(cv:0)Epoch 30 Loss =====> Training Loss: 0.40850        Training Accuracy: 0.67253      Test Loss: 0.93746      Test Accuracy: 0.63947
+(cv:0)Epoch 40 Loss =====> Training Loss: 0.40152        Training Accuracy: 0.67880      Test Loss: 0.94636      Test Accuracy: 0.63776
+(cv:0)Epoch 50 Loss =====> Training Loss: 0.39283        Training Accuracy: 0.71815      Test Loss: 0.95450      Test Accuracy: 0.69461
+(cv:0)Epoch 60 Loss =====> Training Loss: 0.37831        Training Accuracy: 0.72962      Test Loss: 0.98129      Test Accuracy: 0.69368
+(cv:0)Epoch 70 Loss =====> Training Loss: 0.39342        Training Accuracy: 0.69243      Test Loss: 0.97695      Test Accuracy: 0.63526
+(cv:0)Epoch 80 Loss =====> Training Loss: 0.39576        Training Accuracy: 0.68723      Test Loss: 0.97943      Test Accuracy: 0.66250
+(cv:0)Epoch 90 Loss =====> Training Loss: 0.39484        Training Accuracy: 0.69483      Test Loss: 1.02588      Test Accuracy: 0.66250
+(cv:0)Epoch 100 Loss =====> Training Loss: 0.38722       Training Accuracy: 0.70250      Test Loss: 1.05858      Test Accuracy: 0.65461
+=======> Performance Summary:
+Accuracy: 61.01 +- 0.00
+Loss: 0.7753 +- 0.0000

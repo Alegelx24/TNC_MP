@@ -9,14 +9,14 @@ from sklearn.utils import column_or_1d
 
 device = 'cuda' if torch.cuda.is_available() else 'cpu'
 
-encoder = RnnEncoder(hidden_size=100, in_channel=1, encoding_size=160, device=device)
-tcl_checkpoint = torch.load('./ckpt/yahoo/checkpoint_0.pth.tar')
+encoder = RnnEncoder(hidden_size=100, in_channel=1, encoding_size=40, device=device)
+tcl_checkpoint = torch.load('./ckpt/yahoo/checkpoint_n24.pth.tar')
 # tcl_checkpoint = torch.load('./ckpt/waveform_trip/checkpoint.pth.tar')
 encoder.load_state_dict(tcl_checkpoint['encoder_state_dict'])
 encoder.eval()
 encoder.to(device)
 
-window_size = 30
+window_size = 4
 path = './data/yahoo_data/'
 
 with open(os.path.join(path, 'yahoo_x_test.pkl'), 'rb') as f:
@@ -105,11 +105,16 @@ for i, anomaly_scores in enumerate([anomaly_scores_knn, anomaly_scores_lof, anom
     print('********** Results for ', method)
     auc = roc_auc_score(column_or_1d(is_anomaly), column_or_1d(anomaly_scores))#[:,0])
     auprc = average_precision_score(column_or_1d(is_anomaly), column_or_1d(anomaly_scores))#[:,0])
+    f1 = 2 * auc * auprc / (auc + auprc)
+    precision = np.mean(anomaly_scores[y_ind_1.reshape(-1,)])
+    recall = np.mean(anomaly_scores[y_ind_1.reshape(-1,)] > 0)
     print('Anomaly detection AUC: ', auc)
     print('Anomaly detection AUPRC: ', auprc)
+    '''
     print('Label 0: ', np.mean(anomaly_scores[y_ind_0.reshape(-1,)]), '+-',
           np.std(anomaly_scores[y_ind_0.reshape(-1,)]))
     print('Label 1: ', np.mean(anomaly_scores[y_ind_1.reshape(-1,)]), '+-',
           np.std(anomaly_scores[y_ind_1.reshape(-1,)]))
+    '''
 
 

@@ -475,7 +475,7 @@ def main(is_train, data_type, cv, w, cont, epochs, encoding_size, matrix_profile
     # Yahoo data
     if data_type == 'yahoo':
         #set window size 
-        window_size = 4
+        window_size = 120
         path = './data/yahoo_data/'
         #initialization of encoder
         encoder = RnnEncoder(hidden_size=100, in_channel=1, encoding_size=encoding_size, device=device)

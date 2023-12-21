@@ -222,7 +222,7 @@ def epoch_run(loader, disc_model, encoder, device, w=0, optimizer=None, train=Tr
     
     #mp loss definition
     mp_loss = 0
-    mp_on_encoding=True
+    mp_on_encoding=False
 
     encoder.to(device)
     disc_model.to(device)
@@ -251,6 +251,13 @@ def epoch_run(loader, disc_model, encoder, device, w=0, optimizer=None, train=Tr
         flattened_matrix_profile = torch.flatten(matrix_profile_window)
         mp_loss_over_window_mean_batches = flattened_matrix_profile.float().mean() #should be of shape([1])
 
+        #mean threshold
+        threshold = mp_loss_window_mean.mean()
+        std = mp_loss_window_mean.std()
+        mask = mp_loss_single_timestamp > (threshold + std)
+        elements_greater_than_threshold = mp_loss_single_timestamp[mask]
+        mp_loss_sum_threshold = elements_greater_than_threshold.sum()
+
         '''
         OTHER SOLUTIONS FOR MP LOSS
         threshold = mp_loss_window_mean
@@ -272,10 +279,7 @@ def epoch_run(loader, disc_model, encoder, device, w=0, optimizer=None, train=Tr
         x_t, x_p, x_n = x_t.to(device), x_p.to(device), x_n.to(device)
         #x_t shape [200, 1, 30]
  
-        ''' 
-        MP with encoding inside the loss or not
-        '''
-        if mp_on_encoding == True:
+        if mp_on_encoding == True:# MP with encoding inside the loss or not
                 
             #matrix profile encoding loss inside the discriminator
             Mp_close = Mp_close.reshape((-1, f_size, len_size))
@@ -315,12 +319,13 @@ def epoch_run(loader, disc_model, encoder, device, w=0, optimizer=None, train=Tr
             #mp_loss = mp_loss_window_mean.mean()
             
             # window sum loss
-            #mp_loss = mp_loss_sum
+            mp_loss = mp_loss_sum
 
             #topK loss mean
-            mp_loss = mp_loss_topK.sum()
+            #mp_loss = mp_loss_topK.sum()
 
             # sum of discord over the threshold mean
+            mp_loss = mp_loss_sum_threshold
 
             #hybrid loss
             loss = (alpha)* loss + (1-alpha)*(mp_loss)
@@ -461,111 +466,11 @@ def learn_encoder(x, encoder, window_size, w, lr=0.001, decay=0.005, mc_sample_s
     return encoder
 
 # Main function
-def main(is_train, data_type, cv, w, cont, epochs, encoding_size, matrix_profile=None, alpha=1, mp_contrastive=False, model_name='tnc'):
+def main(is_train, data_type, cv, w, cont, epochs, encoding_size, matrix_profile, alpha=1, mp_contrastive=False, model_name='tnc'):
     if not os.path.exists("./plots"):
         os.mkdir("./plots")
     if not os.path.exists("./ckpt/"):
         os.mkdir("./ckpt/")
-
-    '''
-    #Simulation data
-    if data_type == 'simulation':
-        window_size = 50
-        encoder = RnnEncoder(hidden_size=100, in_channel=3, encoding_size=10, device=device)
-        path = './data/simulated_data/'
-
-        if is_train:
-            with open(os.path.join(path, 'x_train.pkl'), 'rb') as f:
-                x = pickle.load(f)
-            learn_encoder(x, encoder, w=w, lr=1e-3, decay=1e-5, window_size=window_size, n_epochs=epochs,
-                          mc_sample_size=40, path='simulation', device=device, augmentation=5, n_cross_val=cv)
-        else:#Test the encoder on the test set
-            
-            #  Plot the distribution of the encodings and use the learnt encoders to train a downstream classifier
-            with open(os.path.join(path, 'x_test.pkl'), 'rb') as f:
-                x_test = pickle.load(f)
-            with open(os.path.join(path, 'state_test.pkl'), 'rb') as f:
-                y_test = pickle.load(f)
-            checkpoint = torch.load('./ckpt/%s/checkpoint_0.pth.tar' % (data_type))
-            encoder.load_state_dict(checkpoint['encoder_state_dict'])
-            encoder = encoder.to(device)
-            track_encoding(x_test[10,:,50:650], y_test[10,50:650], encoder, window_size, 'simulation')
-            for cv_ind in range(cv):
-                plot_distribution(x_test, y_test, encoder, window_size=window_size, path='simulation',
-                                  title='TNC', device=device, cv=cv_ind)
-                exp = ClassificationPerformanceExperiment(cv=cv_ind)
-                # Run cross validation for classification
-                for lr in [0.001, 0.01, 0.1]:
-                    print('===> lr: ', lr)
-                    tnc_acc, tnc_auc, e2e_acc, e2e_auc = exp.run(data='simulation', n_epochs=150, lr_e2e=lr, lr_cls=lr)
-                    print('TNC acc: %.2f \t TNC auc: %.2f \t E2E acc: %.2f \t E2E auc: %.2f'%(tnc_acc, tnc_auc, e2e_acc, e2e_auc))
-
-    # Waveform data
-    if data_type == 'waveform':
-        window_size = 2500
-        path = './data/waveform_data/processed'
-        encoder = WFEncoder(encoding_size=64).to(device)
-
-        if is_train:
-            with open(os.path.join(path, 'x_train.pkl'), 'rb') as f:
-                x = pickle.load(f)
-            T = x.shape[-1]
-            x_window = np.concatenate(np.split(x[:, :, :T // 5 * 5], 5, -1), 0)
-            learn_encoder(torch.Tensor(x_window), encoder, w=w, lr=1e-5, decay=1e-4, n_epochs=epochs, window_size=window_size,
-                          path='waveform', mc_sample_size=10, device=device, augmentation=7, n_cross_val=cv, cont = cont)
-        else:
-            with open(os.path.join(path, 'x_test.pkl'), 'rb') as f:
-                x_test = pickle.load(f)
-            with open(os.path.join(path, 'state_test.pkl'), 'rb') as f:
-                y_test = pickle.load(f)
-            checkpoint = torch.load('./ckpt/%s/checkpoint_0.pth.tar' % (data_type))
-            encoder.load_state_dict(checkpoint['encoder_state_dict'])
-            encoder = encoder.to(device)
-            track_encoding(x_test[0, :, 80000:130000], y_test[0, 80000:130000], encoder, window_size, 'waveform', sliding_gap=1000)
-            for cv_ind in range(cv):
-                plot_distribution(x_test, y_test, encoder, window_size=window_size, path='waveform',
-                                  device=device, augment=100, cv=cv_ind, title='TNC')
-            exp = WFClassificationExperiment(window_size=window_size, cv=cv_ind)
-            exp.run(data='waveform', n_epochs=10, lr_e2e=0.0001, lr_cls=0.01)
-            
-    # Human Activity Recognition (HAR) data
-    if data_type == 'har':
-        #set window size 
-        window_size = 4
-        path = './data/HAR_data/'
-        #initialization of encoder
-        encoder = RnnEncoder(hidden_size=100, in_channel=561, encoding_size=10, device=device)
-
-        if is_train: #train the Rnn encoder on the training set
-
-            with open(os.path.join(path, 'x_train.pkl'), 'rb') as f:
-                x = pickle.load(f)
-            print(torch.Tensor(x)[0])
-            learn_encoder(torch.Tensor(x), encoder, w=w, lr=1e-3, decay=1e-5, n_epochs=epochs, window_size=window_size,
-                          path='har', mc_sample_size=20, device=device, augmentation=5, n_cross_val=cv)
-            
-        else: #test the encoder on the test set
-            with open(os.path.join(path, 'x_test.pkl'), 'rb') as f:
-                x_test = pickle.load(f)
-            with open(os.path.join(path, 'state_test.pkl'), 'rb') as f:
-                y_test = pickle.load(f)
-            checkpoint = torch.load('./ckpt/%s/checkpoint_0.pth.tar' % (data_type))
-            encoder.load_state_dict(checkpoint['encoder_state_dict'])
-            encoder = encoder.to(device)
-            #track_encoding(x_test[0,:,:], y_test[0,:], encoder, window_size, 'har') #used to plot the encoding
-            for cv_ind in range(cv):
-                plot_distribution(x_test, y_test, encoder, window_size=window_size, path='har', device=device,
-                                  augment=100, cv=cv_ind, title='TNC')
-                
-                #set up the classification experiment
-                exp = ClassificationPerformanceExperiment(n_states=6, encoding_size=10, path='har', hidden_size=100,
-                                                          in_channel=561, window_size=4, cv=cv_ind)
-                # Run cross validation for classification
-                for lr in [0.001, 0.01, 0.1]:
-                    print('===> lr: ', lr)
-                    tnc_acc, tnc_auc, e2e_acc, e2e_auc = exp.run(data='har', n_epochs=50, lr_e2e=lr, lr_cls=lr)
-                    print('TNC acc: %.2f \t TNC auc: %.2f \t E2E acc: %.2f \t E2E auc: %.2f'%(tnc_acc, tnc_auc, e2e_acc, e2e_auc))
-    '''
 
     # Yahoo data
     if data_type == 'yahoo':
@@ -577,20 +482,24 @@ def main(is_train, data_type, cv, w, cont, epochs, encoding_size, matrix_profile
 
         if is_train: #train the Rnn encoder on the training set
 
-            with open(os.path.join(path, 'yahoo_x_train.pkl'), 'rb') as f:
+            with open(os.path.join(path, 'yahoo_as_ts2vec_x_train.pkl'), 'rb') as f:
                 x = pickle.load(f)
-            if matrix_profile is not None:    
-                with open(os.path.join(path, 'yahoo_mp_train.pkl'), 'rb') as f:
+            if matrix_profile is True:    
+                with open(os.path.join(path, 'yahoo_as_ts2vec_mp_train.pkl'), 'rb') as f:
                     mp = pickle.load(f)
+                    mp_tensor= torch.Tensor(mp)
+                    print("mp_tensor shape: ", mp_tensor.shape)
+            else:
+                mp_tensor = None
 
             learn_encoder(torch.Tensor(x), encoder, w=w, lr=1e-3, decay=1e-5, n_epochs=epochs, window_size=window_size,
                         path='yahoo', mc_sample_size=20, device=device, augmentation=5, n_cross_val=cv, encoding_size=encoding_size,
-                        mp=torch.Tensor(mp), alpha=alpha, mp_contrastive=mp_contrastive, model_name=model_name)
+                        mp=mp_tensor, alpha=alpha, mp_contrastive=mp_contrastive, model_name=model_name)
             
         else: #test the encoder on the test set
-            with open(os.path.join(path, 'yahoo_x_test.pkl'), 'rb') as f:
+            with open(os.path.join(path, 'yahoo_as_ts2vec_x_test.pkl'), 'rb') as f:
                 x_test = pickle.load(f)
-            with open(os.path.join(path, 'yahoo_y_test.pkl'), 'rb') as f:
+            with open(os.path.join(path, 'yahoo_as_ts2vec_y_test.pkl'), 'rb') as f:
                 y_test = pickle.load(f)
             checkpoint = torch.load('./ckpt/%s/checkpoint_0.pth.tar' % (data_type))
             encoder.load_state_dict(checkpoint['encoder_state_dict'])

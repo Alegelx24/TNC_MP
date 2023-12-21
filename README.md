@@ -1,10 +1,10 @@
 # Overall notes
 
 ## ToDo
-- [ ] Controlla come suddividere training di yahoo
+- [X] Controlla come suddividere training di yahoo
 - [ ] Prepara preprocessing per KPI
 
-## Experiments to do 
+## Experiments to do ion Yahoo half/half
 - Baseline:
     - [X] different window size ( 4 - 30 - 60 - 120 - 672 - 48)
     - [X] different encoding size (320 - 160 - 80 - 40)
@@ -15,7 +15,7 @@
     - [X] Sperimenta con penalty somma e non media
     - [X] Sperimenta con TopK con K parameter somma (K= 1, window/2)
     - [X] Sperimente considerando anche discriminator per MP
-    - [ ] Sperimenta con somma di solo quelli sopra alla threshold
+    - [] Sperimenta con somma di solo quelli sopra alla threshold
     - [ ] Sperimenta con diversi Matrix profile
 - Contrastive loss: 
     - [ ] Mp vicini come altri negative
@@ -23,6 +23,11 @@
     - [ ] Mp vicini come sostituzione a dei non neighbor, non tutti
     - [ ] Rimuovere dai vicini i piu Discordanti o lasciarli
     - [ ] Negative sono sempre quelli con Mp piu alti di tutti
+
+## Experiments to do on Yahoo half/half on each subsequence
+## Experiments to do on Yahoo half/half Normalized
+
+
 
 
 ## Scripts

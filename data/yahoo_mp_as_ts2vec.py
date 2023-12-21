@@ -54,7 +54,7 @@ def preprocess_matrix_profile_yahoo(path, matrix_profile_path, output_prefix):
     mp_index = 0
 
     for file in all_files:
-        
+
         df = pd.read_csv(file)
         values = df['value'].tolist()
         if 'is_anomaly' in df.columns:
@@ -70,8 +70,8 @@ def preprocess_matrix_profile_yahoo(path, matrix_profile_path, output_prefix):
         y_train.append(labels[:split_index])
         x_test.append(values[split_index:])
         y_test.append(labels[split_index:])
-        mp_train.append(matrix_profile[mp_index:mp_index+split_index])
-        mp_test.append(matrix_profile[mp_index+split_index:mp_index+len(values)])   
+        mp_train.append(matrix_profile[mp_index:(mp_index+split_index)])
+        mp_test.append(matrix_profile[(mp_index+split_index):(mp_index+len(values))])   
         mp_index += len(values)
 
 
@@ -84,7 +84,7 @@ def preprocess_matrix_profile_yahoo(path, matrix_profile_path, output_prefix):
     padded_mp_train = [np.pad(series, (0, max_length - len(series)), 'constant') for series in mp_train]
 
     with open(output_prefix + '_mp_train.pkl', 'wb') as f:
-        pickle.dump(mp_train, f)
+        pickle.dump(padded_mp_train, f)
     with open(output_prefix + '_mp_test.pkl', 'wb') as f:
         pickle.dump(mp_test, f)
 

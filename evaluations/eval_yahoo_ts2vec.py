@@ -127,7 +127,7 @@ def extract_sliding_window_repr(encoder, data, sliding_padding=100, mask="all"):
 
 import torch
 
-def extract_sliding_window_repr(encoder, data, sliding_padding=100, mask="all", batch_size=10):
+def extract_sliding_window_repr(encoder, data, sliding_padding=100, mask="all", batch_size=1):
     # Convert data to a PyTorch tensor and add necessary dimensions
     data_tensor = torch.Tensor(data).unsqueeze(0).unsqueeze(0)  # Shape: (1, 1, n_timestamps)
     
@@ -185,8 +185,8 @@ def eval_anomaly_detection(encoder, all_train_data, all_train_labels, all_test_d
 
         torch.no_grad()
 
-        full_repr_train = extract_sliding_window_repr(encoder, train_data, sliding_padding=50, mask="mask_last",)
-        full_repr_test = extract_sliding_window_repr(encoder, test_data, sliding_padding=50, mask="mask_last")
+        full_repr_train = extract_sliding_window_repr(encoder, train_data, sliding_padding=20, mask="mask_last",)
+        full_repr_test = extract_sliding_window_repr(encoder, test_data, sliding_padding=20, mask="mask_last")
 
         #full_repr_test = torch.Tensor(np.random.rand(*full_repr_train.shape))
       

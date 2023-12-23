@@ -316,16 +316,16 @@ def epoch_run(loader, disc_model, encoder, device, w=0, optimizer=None, train=Tr
             loss = (p_loss + w*n_loss_u + (1-w)*n_loss)/2
 
             #window mean loss
-            #mp_loss = mp_loss_window_mean.mean()
+            mp_loss = mp_loss_window_mean.mean()
             
             # window sum loss
-            mp_loss = mp_loss_sum
+            #mp_loss = mp_loss_sum
 
             #topK loss mean
             #mp_loss = mp_loss_topK.sum()
 
             # sum of discord over the threshold mean
-            mp_loss = mp_loss_sum_threshold
+            #mp_loss = mp_loss_sum_threshold
 
             #hybrid loss
             loss = (alpha)* loss + (1-alpha)*(mp_loss)

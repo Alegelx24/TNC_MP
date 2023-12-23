@@ -1,53 +1,92 @@
-'''
-Preprocess the HAR data to concatenate individual measurements
-'''
-
-import pandas as pd
 import numpy as np
+import pandas as pd
+from statsmodels.tsa.stattools import adfuller
+import argparse
 import pickle
 
-trainX = pd.read_csv('./data/HAR_data/train/X_train.txt', delim_whitespace=True,header=None)
-trainy = pd.read_csv('./data/HAR_data/train/y_train.txt',delim_whitespace=True,header=None)
-train_subj = pd.read_csv('./data/HAR_data/train/subject_train.txt', delim_whitespace=True,header=None)
-testX = pd.read_csv('./data/HAR_data/test/X_test.txt',delim_whitespace=True,header=None)
-testy = pd.read_csv('./data/HAR_data/test/y_test.txt',delim_whitespace=True,header=None)
-test_subj = pd.read_csv('./data/HAR_data/test/subject_test.txt', delim_whitespace=True,header=None)
+def pad_sequences(sequences, max_len):
+    return [np.pad(seq, (0, max_len - len(seq)), 'constant') for seq in sequences]
 
-train_ids = np.unique(train_subj)
-x_train, y_train = [], []
-lens = []
-for i, ids in enumerate(train_ids):
-    inds = np.where(train_subj == ids)[0]
-    ts = np.take(trainX, inds, 0).to_numpy()
-    ts_labels = np.take(trainy, inds, 0).to_numpy().reshape(-1,1)
-    lens.append(len(ts))
-    x_train.append(ts.T)
-    y_train.append(ts_labels.reshape(-1, ))
 
-x_train = np.stack([x[:, :min(lens)] for x in x_train])
-y_train = np.stack([y[:min(lens)] for y in y_train])
+def _load_raw_KPI(train_filename, test_filename):
+    train_data = pd.read_csv(train_filename)
+    train_data = train_data.set_index(['KPI ID', 'timestamp']).sort_index()
+    x_train = {}
+    y_train = {}
+    timestamp_train = {}
+    scaler = {}
+    for name, df in train_data.groupby(level=0):
+        x_train[name] = df['value'].to_numpy()
+        y_train[name] = df['label'].to_numpy()
+        meanv = df['value'].mean()
+        stdv = df['value'].std()
+        scaler[name] = (meanv, stdv)
+        x_train[name] = (x_train[name] - meanv) / stdv
+        timestamp_train[name] = df.index.get_level_values(1)
+    
+    test_data = pd.read_hdf(test_filename)
+    test_data['KPI ID'] = test_data['KPI ID'].apply(str)
+    test_data = test_data.set_index(['KPI ID', 'timestamp']).sort_index()
+    x_test = {}
+    y_test = {}
+    timestamp_test = {}
+    for name, df in test_data.groupby(level=0):
+        x_test[name] = df['value'].to_numpy()
+        y_test[name] = df['label'].to_numpy()
+        x_test[name] = (x_test[name] - scaler[name][0]) / scaler[name][1]
+        timestamp_test[name] = df.index.get_level_values(1)
+    return x_train, y_train, timestamp_train, x_test, y_test, timestamp_test
+if __name__ == '__main__':
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--train-file', type=str, default='data/KPI_data/phase2_train.csv')
+    parser.add_argument('--test-file', type=str, default='data/KPI_data/phase2_ground_truth.hdf')
+    parser.add_argument('-o', '--output', type=str, default='kpi.pkl')
+    args = parser.parse_args()
 
-test_ids = np.unique(test_subj)
-x_test, y_test = [], []
-lens = []
-for i, ids in enumerate(test_ids):
-    inds = np.where(test_subj == ids)[0]
-    ts = np.take(testX, inds, 0).to_numpy()
-    # ts_labels = np.repeat(np.take(testy, inds, 0).to_numpy().reshape(-1,1), testX.shape[1], -1)
-    ts_labels = np.take(testy, inds, 0).to_numpy().reshape(-1,1)
-    lens.append(len(ts))
-    x_test.append(ts.T)
-    y_test.append(ts_labels.reshape(-1, ))
+    data1, labels1, timestamps1, data2, labels2, timestamps2 = _load_raw_KPI(args.train_file, args.test_file)
+    
+    all_train_data = []
+    all_train_labels = []
+    all_test_data = []
+    all_test_labels = []
+    
+    for k in data1:
+        data = data1[k]
+        labels = labels1[k]
+        l = len(data) // 2
 
-x_test = np.stack([x[:, :min(lens)] for x in x_test])
-y_test = np.stack([y[:min(lens)] for y in y_test])
+        all_train_data.append(data[:l])
+        all_train_labels.append(labels[:l])  # Keep as numpy array
+        all_test_data.append(data[l:])
+        all_test_labels.append(labels[l:])  # Keep as numpy array
 
-## Save signals to file
-with open('./data/HAR_data/x_train.pkl', 'wb') as f:
-    pickle.dump(x_train, f)
-with open('./data/HAR_data/x_test.pkl', 'wb') as f:
-    pickle.dump(x_test, f)
-with open('./data/HAR_data/state_train.pkl', 'wb') as f:
-    pickle.dump(y_train-1, f)
-with open('./data/HAR_data/state_test.pkl', 'wb') as f:
-    pickle.dump(y_test-1, f)
+    for k in data2:
+        data = data2[k]
+        labels = labels2[k]
+        l = len(data) // 2
+
+        all_train_data.append(data[:l])
+        all_train_labels.append(labels[:l])  # Keep as numpy array
+        all_test_data.append(data[l:])
+        all_test_labels.append(labels[l:])  # Keep as numpy array
+
+    max_length = max(max(len(seq) for seq in all_train_data), 
+                     max(len(seq) for seq in all_test_data))
+    
+
+    all_train_data = pad_sequences(all_train_data, max_length)
+    all_train_labels = pad_sequences(all_train_labels, max_length)
+    all_test_data = pad_sequences(all_test_data, max_length)
+    all_test_labels = pad_sequences(all_test_labels, max_length)
+
+
+
+    # Save the data into separate files
+    with open('KPI_x_train.pkl', 'wb') as f:
+        pickle.dump(all_train_data, f)
+    with open('KPI_y_train.pkl', 'wb') as f:
+        pickle.dump(all_train_labels, f)
+    with open('KPI_x_test.pkl', 'wb') as f:
+        pickle.dump(all_test_data, f)
+    with open('KPI_y_test.pkl', 'wb') as f:
+        pickle.dump(all_test_labels, f)

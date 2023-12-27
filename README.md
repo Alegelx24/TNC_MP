@@ -2,7 +2,9 @@
 
 ## ToDo
 - [X] Controlla come suddividere training di yahoo
-- [ ] Prepara preprocessing per KPI
+- [X] Prepara preprocessing per KPI
+- [X] Testa train on KPI
+
 
 ## Experiments to do ion Yahoo half/half
 - Baseline:

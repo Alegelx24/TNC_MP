@@ -222,7 +222,7 @@ def epoch_run(loader, disc_model, encoder, device, w=0, optimizer=None, train=Tr
     
     #mp loss definition
     mp_loss = 0
-    mp_on_encoding=True
+    mp_on_encoding=False
 
     encoder.to(device)
     disc_model.to(device)

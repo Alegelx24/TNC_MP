@@ -297,7 +297,36 @@ Loss: 0.2039 +- 0.0000
 
 #### ALPHA 0.7 | n17
 
+(cv:0)Epoch 20 Loss =====> Training Loss: 4.72490        Training Accuracy: 0.85675      Test Loss: 0.30543      Test Accuracy: 0.82493
+(cv:0)Epoch 30 Loss =====> Training Loss: 4.69435        Training Accuracy: 0.86832      Test Loss: 0.29490      Test Accuracy: 0.83716
+(cv:0)Epoch 40 Loss =====> Training Loss: 4.69447        Training Accuracy: 0.87799      Test Loss: 0.33777      Test Accuracy: 0.79527
+(cv:0)Epoch 50 Loss =====> Training Loss: 4.67634        Training Accuracy: 0.89058      Test Loss: 0.33363      Test Accuracy: 0.82250
+(cv:0)Epoch 60 Loss =====> Training Loss: 4.69087        Training Accuracy: 0.89211      Test Loss: 0.33213      Test Accuracy: 0.81534
+(cv:0)Epoch 70 Loss =====> Training Loss: 4.64956        Training Accuracy: 0.90793      Test Loss: 0.35336      Test Accuracy: 0.81689
+(cv:0)Epoch 80 Loss =====> Training Loss: 4.67705        Training Accuracy: 0.89930      Test Loss: 0.39502      Test Accuracy: 0.80480
+(cv:0)Epoch 90 Loss =====> Training Loss: 4.66167        Training Accuracy: 0.90259      Test Loss: 0.36790      Test Accuracy: 0.83534
+(cv:0)Epoch 100 Loss =====> Training Loss: 4.64569       Training Accuracy: 0.92163      Test Loss: 0.50355      Test Accuracy: 0.77264
+=======> Performance Summary:
+Accuracy: 83.72 +- 0.00
+Loss: 0.2949 +- 0.0000
+
 #### ALPHA 0.9 | n18
+TNC model with w=0.050000
+mp_tensor shape:  torch.Size([367, 840])
+(cv:0)Epoch 0 Loss =====> Training Loss: 2.02891         Training Accuracy: 0.68694      Test Loss: 0.56331      Test Accuracy: 0.69291
+(cv:0)Epoch 10 Loss =====> Training Loss: 1.87040        Training Accuracy: 0.83075      Test Loss: 0.40566      Test Accuracy: 0.82115
+(cv:0)Epoch 20 Loss =====> Training Loss: 1.84229        Training Accuracy: 0.84830      Test Loss: 0.38809      Test Accuracy: 0.83000
+(cv:0)Epoch 30 Loss =====> Training Loss: 1.83091        Training Accuracy: 0.85922      Test Loss: 0.43777      Test Accuracy: 0.81764
+(cv:0)Epoch 40 Loss =====> Training Loss: 1.78932        Training Accuracy: 0.88139      Test Loss: 0.42402      Test Accuracy: 0.81493
+(cv:0)Epoch 50 Loss =====> Training Loss: 1.79851        Training Accuracy: 0.87719      Test Loss: 0.37989      Test Accuracy: 0.83514
+(cv:0)Epoch 60 Loss =====> Training Loss: 1.78907        Training Accuracy: 0.88116      Test Loss: 0.44928      Test Accuracy: 0.82595
+(cv:0)Epoch 70 Loss =====> Training Loss: 1.76560        Training Accuracy: 0.89820      Test Loss: 0.44584      Test Accuracy: 0.82128
+(cv:0)Epoch 80 Loss =====> Training Loss: 1.74924        Training Accuracy: 0.91189      Test Loss: 0.49044      Test Accuracy: 0.83034
+(cv:0)Epoch 90 Loss =====> Training Loss: 1.77237        Training Accuracy: 0.89687      Test Loss: 0.62091      Test Accuracy: 0.79493
+(cv:0)Epoch 100 Loss =====> Training Loss: 1.73286       Training Accuracy: 0.91624      Test Loss: 0.51901      Test Accuracy: 0.81608
+=======> Performance Summary:
+Accuracy: 83.94 +- 0.00
+Loss: 0.3727 +- 0.0000
 
 #### ALPHA 0.95 | n19
 

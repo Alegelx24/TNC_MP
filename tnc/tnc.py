@@ -364,6 +364,9 @@ def learn_encoder(x, encoder, window_size, w, lr=0.001, decay=0.005, mc_sample_s
         elif 'yahoo' in path: #yahoo dataset, 1 feature, RNN encoder with 100 hidden units
             encoder = RnnEncoder(hidden_size=100, in_channel=1, encoding_size=encoding_size, device=device)
             batch_size = 10 
+        elif 'kpi' in path: #yahoo dataset, 1 feature, RNN encoder with 100 hidden units
+            encoder = RnnEncoder(hidden_size=100, in_channel=1, encoding_size=encoding_size, device=device)
+            batch_size = 10
 
         if not os.path.exists('./ckpt/%s'%path):#create checkpoint folder
             os.mkdir('./ckpt/%s'%path)
@@ -516,6 +519,52 @@ def main(is_train, data_type, cv, w, cont, epochs, encoding_size, matrix_profile
                 for lr in [0.001, 0.01, 0.1]:
                     print('===> lr: ', lr)
                     tnc_acc, tnc_auc, e2e_acc, e2e_auc = exp.run(data='yahoo', n_epochs=50, lr_e2e=lr, lr_cls=lr)
+                    print('TNC acc: %.2f \t TNC auc: %.2f \t E2E acc: %.2f \t E2E auc: %.2f'%(tnc_acc, tnc_auc, e2e_acc, e2e_auc))
+
+     # KPI data
+    if data_type == 'kpi':
+        #set window size 
+        window_size = 10
+        path = './data/KPI_data/'
+        #initialization of encoder
+        encoder = RnnEncoder(hidden_size=100, in_channel=1, encoding_size=encoding_size, device=device)
+
+        if is_train: #train the Rnn encoder on the training set
+
+            with open(os.path.join(path, 'KPI_x_train.pkl'), 'rb') as f:
+                x = pickle.load(f)
+            if matrix_profile is True:    
+                with open(os.path.join(path, 'yahoo_as_ts2vec_mp_train.pkl'), 'rb') as f:
+                    mp = pickle.load(f)
+                    mp_tensor= torch.Tensor(mp)
+                    print("mp_tensor shape: ", mp_tensor.shape)
+            else:
+                mp_tensor = None
+
+            learn_encoder(torch.Tensor(x), encoder, w=w, lr=1e-3, decay=1e-5, n_epochs=epochs, window_size=window_size,
+                        path='kpi', mc_sample_size=20, device=device, augmentation=5, n_cross_val=cv, encoding_size=encoding_size,
+                        mp=mp_tensor, alpha=alpha, mp_contrastive=mp_contrastive, model_name=model_name)
+            
+        else: #test the encoder on the test set
+            with open(os.path.join(path, 'KPI_x_test.pkl'), 'rb') as f:
+                x_test = pickle.load(f)
+            with open(os.path.join(path, 'KPI_y_test.pkl'), 'rb') as f:
+                y_test = pickle.load(f)
+            checkpoint = torch.load('./ckpt/%s/checkpoint_0.pth.tar' % (data_type))
+            encoder.load_state_dict(checkpoint['encoder_state_dict'])
+            encoder = encoder.to(device)
+            #track_encoding(x_test[0,:,:], y_test[0,:], encoder, window_size, 'har') #used to plot the encoding
+            for cv_ind in range(cv):
+                plot_distribution(x_test, y_test, encoder, window_size=window_size, path='kpi', device=device,
+                                augment=100, cv=cv_ind, title='TNC')
+                
+                #set up the classification experiment
+                exp = ClassificationPerformanceExperiment(n_states=2, encoding_size=10, path='kpi', hidden_size=100,
+                                                        in_channel=1, window_size=30, cv=cv_ind)
+                # Run cross validation for classification
+                for lr in [0.001, 0.01, 0.1]:
+                    print('===> lr: ', lr)
+                    tnc_acc, tnc_auc, e2e_acc, e2e_auc = exp.run(data='kpi', n_epochs=50, lr_e2e=lr, lr_cls=lr)
                     print('TNC acc: %.2f \t TNC auc: %.2f \t E2E acc: %.2f \t E2E auc: %.2f'%(tnc_acc, tnc_auc, e2e_acc, e2e_auc))
 
 

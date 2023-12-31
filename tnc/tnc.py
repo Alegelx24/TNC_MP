@@ -542,7 +542,7 @@ def main(is_train, data_type, cv, w, cont, epochs, encoding_size, matrix_profile
                 mp_tensor = None
 
             learn_encoder(torch.Tensor(x), encoder, w=w, lr=1e-3, decay=1e-5, n_epochs=epochs, window_size=window_size,
-                        path='kpi', mc_sample_size=20, device=device, augmentation=5, n_cross_val=cv, encoding_size=encoding_size,
+                        path='kpi', mc_sample_size=40, device=device, augmentation=5, n_cross_val=cv, encoding_size=encoding_size,
                         mp=mp_tensor, alpha=alpha, mp_contrastive=mp_contrastive, model_name=model_name)
             
         else: #test the encoder on the test set

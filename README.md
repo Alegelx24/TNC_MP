@@ -50,6 +50,10 @@
     - [ ] Negative sono sempre quelli con Mp piu alti di tutti
 
 ## Experiments to do ion KPI
+- Other:
+    - [ ] fix evaluation on kpi
+    - [ ] readapt MP kpi preprocessing
+
 - Baseline:
     - [X] different window size ( 4 - 30 - 60 - 120 - 672 - 48)
     - [X] different encoding size (320 - 160 - 80 - 40)

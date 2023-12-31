@@ -103,22 +103,32 @@ Accuracy: 82.12 +- 0.00
 Loss: 0.4316 +- 0.0000
 
 #### ENCODING 80 | Mc 20 | window 10 | n8
-
-
+Accuracy: 81.58 +- 0.00
+Loss: 0.4337 +- 0.0000
 
 #### ENCODING 40 | Mc 20 | window 10 | n9
 
-
+Accuracy: 82.92 +- 0.00
+Loss: 0.4351 +- 0.0000
 
 #### ENCODING 10 | Mc 20 | window 10 | n10
+Accuracy: 83.21 +- 0.00
+Loss: 0.4520 +- 0.0000
+
 
 ### RESULTS WITH DIFFERENT MC SAMPLE SIZE (40 - 20 - 10) 160 | Mc 20 | window 120
 
-#### ENCODING 160 | Mc 40 | window 120 | n12
+#### ENCODING 40 | Mc 40 | window 10 | n12
+Accuracy: 81.65 +- 0.00
+Loss: 0.4507 +- 0.0000
+
+#### ENCODING 40 | Mc 20 | window 10 |  upon
 
 
-#### ENCODING 160 | Mc 20 | window 120 |  upon
+#### ENCODING 40 | Mc 10 | window 10 | n11
+=======> Performance Summary:
+Accuracy: 81.75 +- 0.00
+Loss: 0.4586 +- 0.0000
 
 
-#### ENCODING 160 | Mc 10 | window 120 | n13
-
+### BEST MODEL IS ENCODING 10 | Mc 20 | window 10 | n10

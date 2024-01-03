@@ -52,7 +52,7 @@ def reconstruct_label(timestamp, label):
 
     idx = (timestamp_sorted - timestamp_sorted[0]) // interval
 
-    new_label = np.zeros(shape=((timestamp_sorted[-1] - timestamp_sorted[0]) // interval + 1,), dtype=np.int)
+    new_label = np.zeros(shape=((timestamp_sorted[-1] - timestamp_sorted[0]) // interval + 1,), dtype=int)
     new_label[idx] = label
 
     return new_label
@@ -123,11 +123,10 @@ def extract_sliding_window_repr(encoder, data, sliding_padding=100, mask="all"):
     full_repr = torch.stack(representations, dim=0)
 
     return full_repr
+
 '''
 
-import torch
-
-def extract_sliding_window_repr(encoder, data, sliding_padding=100, mask="all", batch_size=1):
+def extract_sliding_window_repr(encoder, data, sliding_padding=10, mask="all", batch_size=256):
     # Convert data to a PyTorch tensor and add necessary dimensions
     data_tensor = torch.Tensor(data).unsqueeze(0).unsqueeze(0)  # Shape: (1, 1, n_timestamps)
     
@@ -169,13 +168,14 @@ def eval_anomaly_detection(encoder, all_train_data, all_train_labels, all_test_d
     all_test_repr = {}
     all_train_repr_wom = {}
     all_test_repr_wom = {}
-    
-    for k in range(all_train_data.size(0)):
+    all_test_data = all_test_data.squeeze(1)
+        
+    for k in range(all_train_data.size(0)):#over all 367 subsequences
         train_data = all_train_data[k]
-        test_data = all_test_data[k].squeeze(0)
+        test_data = all_test_data[k]
 
-        #Note: train data tensor shape ([1680])
-
+        #Note: train data tensor shape ([840])
+        torch.cuda.empty_cache()
         '''
         full_repr = encoder(
             np.concatenate([train_data, test_data]).reshape(1, -1, 1),
@@ -183,10 +183,9 @@ def eval_anomaly_detection(encoder, all_train_data, all_train_labels, all_test_d
         ).squeeze()
         '''
 
-        torch.no_grad()
 
-        full_repr_train = extract_sliding_window_repr(encoder, train_data, sliding_padding=20, mask="mask_last",)
-        full_repr_test = extract_sliding_window_repr(encoder, test_data, sliding_padding=20, mask="mask_last")
+        full_repr_train = extract_sliding_window_repr(encoder, train_data, sliding_padding=1, mask="mask_last",)
+        full_repr_test = extract_sliding_window_repr(encoder, test_data, sliding_padding=1, mask="mask_last")
 
         #full_repr_test = torch.Tensor(np.random.rand(*full_repr_train.shape))
       
@@ -215,8 +214,8 @@ def eval_anomaly_detection(encoder, all_train_data, all_train_labels, all_test_d
         all_train_repr[k] = full_repr_train
         all_test_repr[k] = full_repr_test
 
-        full_repr_train_wom = extract_sliding_window_repr(encoder, train_data, sliding_padding=50, mask="all")
-        full_repr_test_wom = extract_sliding_window_repr(encoder, test_data, sliding_padding=50, mask="all")
+        full_repr_train_wom = extract_sliding_window_repr(encoder, train_data, sliding_padding=1, mask="all")
+        full_repr_test_wom = extract_sliding_window_repr(encoder, test_data, sliding_padding=1, mask="all")
         
         #full_repr_train_wom = np.random.rand(*full_repr_train.shape)
         #full_repr_test_wom = np.random.rand(*full_repr_test.shape)      
@@ -230,6 +229,9 @@ def eval_anomaly_detection(encoder, all_train_data, all_train_labels, all_test_d
     
     for k in range(all_train_data.size(0)): #iterate over all datasets subsequences, its ok to do it on training set because it 50% of the data
         train_data = all_train_data[k]
+
+        torch.cuda.empty_cache()
+
 
         test_data = all_test_data[k]
         test_labels = all_test_labels[k]
@@ -277,7 +279,7 @@ if __name__ == "__main__":
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
 
     encoder = RnnEncoder(hidden_size=100, in_channel=1, encoding_size=10, device=device)
-    tcl_checkpoint = torch.load('./ckpt/yahoo/checkpoint_size10.pth.tar')
+    tcl_checkpoint = torch.load('./ckpt/yahoo/checkpoint_ts2vec_11.pth.tar')
     # tcl_checkpoint = torch.load('./ckpt/waveform_trip/checkpoint.pth.tar')
     encoder.load_state_dict(tcl_checkpoint['encoder_state_dict'])
     encoder.eval()
@@ -286,25 +288,25 @@ if __name__ == "__main__":
     window_size = 30
     path = './data/yahoo_data/'
 
-    with open(os.path.join(path, 'yahoo_x_test.pkl'), 'rb') as f:
+    with open(os.path.join(path, 'yahoo_as_ts2vec_x_test.pkl'), 'rb') as f:
         x_test = pickle.load(f)
-    with open(os.path.join(path, 'yahoo_y_test.pkl'), 'rb') as f:
+    with open(os.path.join(path, 'yahoo_as_ts2vec_y_test.pkl'), 'rb') as f:
         y_test = pickle.load(f)
     
-    with open(os.path.join(path, 'yahoo_x_train.pkl'), 'rb') as f:
+    with open(os.path.join(path, 'yahoo_as_ts2vec_x_train.pkl'), 'rb') as f:
         x_train = pickle.load(f)
-    with open(os.path.join(path, 'yahoo_y_train.pkl'), 'rb') as f:
+    with open(os.path.join(path, 'yahoo_as_ts2vec_y_train.pkl'), 'rb') as f:
         y_train = pickle.load(f)
     
 
-    x_test=torch.Tensor(x_test)
-    y_test=torch.Tensor(y_test)
+    x_test=torch.Tensor(np.array(x_test))
+    y_test=torch.Tensor(np.array(y_test))
     timestamp_test = torch.arange(y_test.shape[0] * y_test.shape[1]).view(y_test.shape)
 
 
-    x_train=torch.Tensor(x_train)
+    x_train=torch.Tensor(np.array(x_train))
 
-    y_train=torch.Tensor(y_train)
+    y_train=torch.Tensor(np.array(y_train))
 
     T = x_test.shape[-1]
 
@@ -315,24 +317,15 @@ if __name__ == "__main__":
 
     #simple splitting in window length sequence 
     y_window = np.concatenate(np.split((y_test)[:, :window_size * (T // window_size)], (T // window_size), -1),0).astype(int) 
-    #y_window = np.array([np.bincount(yy).argmax() for yy in y_window])
 
     #all sequence is considered as a single sample
-    y_window = np.array([1 if np.any(yy == 1) else 0 for yy in y_window])
+    #y_window = np.array([1 if np.any(yy == 1) else 0 for yy in y_window])
 
     shuffled_inds_test = list(range(len(x_window)))
     random.shuffle(shuffled_inds_test)
 
     testset = torch.utils.data.TensorDataset(torch.Tensor(x_window), torch.Tensor(y_window))
-    test_loader = torch.utils.data.DataLoader(testset, batch_size=10, shuffle=True)
-
-    is_anomaly = y_window.copy()
-
-    #Encoding phase
-    encodings_train = []
-    for x,_ in test_loader:
-        encodings_train.append(encoder(x.to(device)).detach().cpu().numpy())
-    encodings_train = np.concatenate(encodings_train, 0)
+    test_loader = torch.utils.data.DataLoader(testset, batch_size=1, shuffle=True)
 
 
     out, eval_res = eval_anomaly_detection(encoder, x_train, y_train, x_test, y_test, timestamp_test, delay=50)

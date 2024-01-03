@@ -550,21 +550,21 @@ def main(is_train, data_type, cv, w, cont, epochs, encoding_size, matrix_profile
                 x_test = pickle.load(f)
             with open(os.path.join(path, 'KPI_y_test.pkl'), 'rb') as f:
                 y_test = pickle.load(f)
-            checkpoint = torch.load('./ckpt/%s/checkpoint_0.pth.tar' % (data_type))
+            checkpoint = torch.load('./ckpt/%s/checkpoint_ts2vec_12.pth.tar' % (data_type))
             encoder.load_state_dict(checkpoint['encoder_state_dict'])
             encoder = encoder.to(device)
             #track_encoding(x_test[0,:,:], y_test[0,:], encoder, window_size, 'har') #used to plot the encoding
             for cv_ind in range(cv):
-                plot_distribution(x_test, y_test, encoder, window_size=window_size, path='kpi', device=device,
-                                augment=100, cv=cv_ind, title='TNC')
+                #plot_distribution(x_test, y_test, encoder, window_size=window_size, path='yahoo', device=device,
+                #                augment=100, cv=cv_ind, title='TNC')
                 
                 #set up the classification experiment
-                exp = ClassificationPerformanceExperiment(n_states=2, encoding_size=10, path='kpi', hidden_size=100,
+                exp = ClassificationPerformanceExperiment(n_states=2, encoding_size=10, path='yahoo', hidden_size=100,
                                                         in_channel=1, window_size=30, cv=cv_ind)
                 # Run cross validation for classification
                 for lr in [0.001, 0.01, 0.1]:
                     print('===> lr: ', lr)
-                    tnc_acc, tnc_auc, e2e_acc, e2e_auc = exp.run(data='kpi', n_epochs=50, lr_e2e=lr, lr_cls=lr)
+                    tnc_acc, tnc_auc, e2e_acc, e2e_auc = exp.run(data='yahoo', n_epochs=50, lr_e2e=lr, lr_cls=lr)
                     print('TNC acc: %.2f \t TNC auc: %.2f \t E2E acc: %.2f \t E2E auc: %.2f'%(tnc_acc, tnc_auc, e2e_acc, e2e_auc))
 
 
